@@ -36,6 +36,9 @@ class GeminiHandler(AsyncStreamHandler):
         self.input_queue: asyncio.Queue = asyncio.Queue()
         self.output_queue: asyncio.Queue = asyncio.Queue()
         self.quit = asyncio.Event()
+        # Ignore any response chunks that were already in flight when Gemini
+        # reported that the current model turn was interrupted.
+        self.discard_interrupted_turn = False
 
     def copy(self) -> "GeminiHandler":
         return GeminiHandler(
@@ -60,12 +63,18 @@ class GeminiHandler(AsyncStreamHandler):
         except Exception:
             logger.exception("Error in _send_audio_loop")
 
-    def _clear_output_queue(self):
+    def _clear_output_audio(self) -> None:
+        """Drop audio waiting in both the app and FastRTC playback queues."""
         while not self.output_queue.empty():
             try:
                 self.output_queue.get_nowait()
             except asyncio.QueueEmpty:
                 break
+
+        # FastRTC pulls frames from ``output_queue`` ahead of playback. Clearing
+        # only our queue therefore leaves already-pulled frames audible.
+        if self._clear_queue is not None:
+            self.clear_queue()
 
     async def start_up(self):
         logger.info("Gemini Live start")
@@ -107,13 +116,15 @@ class GeminiHandler(AsyncStreamHandler):
                         if server_content is not None:
                             if server_content.interrupted:
                                 logger.info(
-                                    "Barge-in detected: Clearing output audio queue."
+                                    "Barge-in detected: Clearing pending output audio."
                                 )
-                                self._clear_output_queue()
+                                self.discard_interrupted_turn = True
+                                self._clear_output_audio()
 
                             if (
                                 server_content.model_turn is not None
                                 and server_content.model_turn.parts is not None
+                                and not self.discard_interrupted_turn
                             ):
                                 for part in server_content.model_turn.parts:
                                     if part.inline_data and part.inline_data.data:
@@ -124,6 +135,12 @@ class GeminiHandler(AsyncStreamHandler):
                                         self.output_queue.put_nowait(
                                             (self.output_sample_rate, array)
                                         )
+
+                            # A new response can be played after the server has
+                            # finished emitting the interrupted turn. Until then,
+                            # discard chunks that were buffered in transit.
+                            if server_content.turn_complete:
+                                self.discard_interrupted_turn = False
 
             finally:
                 send_task.cancel()
