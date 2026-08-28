@@ -95,31 +95,35 @@ class GeminiHandler(AsyncStreamHandler):
             send_task = asyncio.create_task(self._send_audio_loop(session))
 
             try:
-                async for response in session.receive():
-                    if self.quit.is_set():
-                        break
+                # session.receive() ends at each model turn, not only when the
+                # Live session closes. Restart it so subsequent user turns can
+                # still be received while the send task remains active.
+                while not self.quit.is_set():
+                    async for response in session.receive():
+                        if self.quit.is_set():
+                            break
 
-                    server_content = response.server_content
-                    if server_content is not None:
-                        if server_content.interrupted:
-                            logger.info(
-                                "Barge-in detected: Clearing output audio queue."
-                            )
-                            self._clear_output_queue()
+                        server_content = response.server_content
+                        if server_content is not None:
+                            if server_content.interrupted:
+                                logger.info(
+                                    "Barge-in detected: Clearing output audio queue."
+                                )
+                                self._clear_output_queue()
 
-                        if (
-                            server_content.model_turn is not None
-                            and server_content.model_turn.parts is not None
-                        ):
-                            for part in server_content.model_turn.parts:
-                                if part.inline_data and part.inline_data.data:
-                                    array = np.frombuffer(
-                                        part.inline_data.data,
-                                        dtype=np.int16,
-                                    )
-                                    self.output_queue.put_nowait(
-                                        (self.output_sample_rate, array)
-                                    )
+                            if (
+                                server_content.model_turn is not None
+                                and server_content.model_turn.parts is not None
+                            ):
+                                for part in server_content.model_turn.parts:
+                                    if part.inline_data and part.inline_data.data:
+                                        array = np.frombuffer(
+                                            part.inline_data.data,
+                                            dtype=np.int16,
+                                        )
+                                        self.output_queue.put_nowait(
+                                            (self.output_sample_rate, array)
+                                        )
 
             finally:
                 send_task.cancel()
