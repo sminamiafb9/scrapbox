@@ -99,7 +99,7 @@ class FrontendHandler(AsyncStreamHandler):
     ) -> None:
         """ブラウザから音声フレームを受け取った時の処理"""
 
-        logger.info("recive")
+        # logger.info("recive")
 
         _sample_rate, array = frame
         array = array.squeeze()
@@ -111,7 +111,7 @@ class FrontendHandler(AsyncStreamHandler):
     async def emit(self) -> tuple[int, np.ndarray] | None:
         """ブラウザへ音声を送りたい時の処理"""
 
-        logger.info("emit")
+        # logger.info("emit")
 
         # output queueに値が入るのを待って返却する
         return await wait_for_item(self.output_queue)
