@@ -41,6 +41,8 @@ QUEUE_STREAM_INPUT_END = object()
 async def queue_stream(
     input_queue: asyncio.Queue[bytes],
 ) -> AsyncGenerator[bytes, None]:
+    """queueを入力待ちして、generatorとして値を返し続けるstream化を行う関数"""
+
     while True:
         try:
             item = await input_queue.get()
@@ -113,7 +115,9 @@ class FrontendHandler(AsyncStreamHandler):
 
         # logger.info("emit")
 
-        # output queueに値が入るのを待って返却する
+        # 非同期にoutput queueに値が入るのを待って返却する
+        # emit自体随時呼ばれるので非同期な処理ループになっている
+        # = 他の処理を止めずに出力をし続けることができる
         return await wait_for_item(self.output_queue)
 
     def shutdown(self) -> None:
@@ -164,12 +168,14 @@ class GeminiHandler:
             ),
         )
 
+        # Geminiとのセッション確立を非同期に行う
         async with client.aio.live.connect(
             model="gemini-3.1-flash-live-preview",
             config=config,
         ) as session:
             logger.info("Gemini Live connected")
 
+            # 非同期にsessionを介してgemini liveとやりとりするループを起動する
             send_task = asyncio.create_task(self._send_audio_loop(session))
             receive_task = asyncio.create_task(self._receive_audio_loop(session))
 
@@ -185,6 +191,7 @@ class GeminiHandler:
         logger.info("send audio loop started")
 
         try:
+            # input_queueから非同期に値を取得し続ける(内部的には無限ループで回し続ける)
             async for audio_bytes in queue_stream(self.input_queue):
                 if self.quit.is_set():
                     break
@@ -206,6 +213,7 @@ class GeminiHandler:
 
         # session.reciveが1turnで終了するためwhileで会話を続ける
         while not self.quit.is_set():
+            # geminiから非同期に値を取得する
             async for response in session.receive():
                 if self.quit.is_set():
                     break

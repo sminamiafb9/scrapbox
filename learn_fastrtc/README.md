@@ -29,10 +29,19 @@
   - `uv run python delayed_echo_audio_live.py`
   - AsyncStreamHandlerを用いた全二重通信のサンプル
   - 発話を1フレーム遅延させてそのままエコーする(ハウリングするため注意)
+- gemini_voice_chat_live.py
+  - `export GEMINI_API_KEY=<your key>`
+  - `uv run python gemini_voice_chat_live.py`
+  - AsyncStreamHandlerを用いた全二重通信でGeminiとの接続を行うサンプル
+  - Agentの発話に割り込んだ会話などができる
+- gemini_voice_chat_live_ref.py
+  - `export GEMINI_API_KEY=<your key>`
+  - `uv run python gemini_voice_chat_live_ref.py`
+  - gemini_voice_chat_live.pyをリファクタリングして、概念をわかりやすくしたサンプル
 
 ## note
 
-### 逐次フローの考え方
+### 半二重通信のフロー
 
 ```mermaid
 sequenceDiagram
@@ -66,3 +75,35 @@ sequenceDiagram
 
 - VAD(Voice Activity Detection / 発話区間検出)で発話区切りが検出されると、Text to Speach、LLM、Speach to Textと逐次データが流れていく構成
 - 半二重通信で交代で話す構成になっている
+
+### 全二重通信のフロー
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    actor User as ユーザー
+    participant Frontend as Frontend
+    participant FH as FrontendHandler
+    participant GH as GeminiHandler
+    participant Gemini as Gemini Live
+
+    par 音声入力
+        User->>Frontend: 音声
+        Frontend->>FH: receive(frame)
+        FH->>FH: input_queue
+        FH->>GH: audio
+        GH->>Gemini: send_realtime_input(audio)
+    and 音声出力
+        Gemini-->>GH: response
+        GH->>GH: output_queue
+        GH->>FH: audio
+        FH->>Frontend: emit()
+        Frontend->>User: 音声
+    end
+
+    Note over User,Gemini: 音声入力と音声出力が同時に進行できる
+```
+
+- 非同期に音声入力と音声出力を処理することで、双方向に音声を送受信する構成
+- 全二重通信で双方が同時に話す/聞くが行える構成になっている
