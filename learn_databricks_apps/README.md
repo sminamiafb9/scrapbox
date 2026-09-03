@@ -14,6 +14,6 @@ brew install databricks
 
 ```bash
 HOST=https://<databricks-instance>.cloud.databricks.com
-databricks auth login  --host $HOST
+databricks auth login --host $HOST
 ```
 
