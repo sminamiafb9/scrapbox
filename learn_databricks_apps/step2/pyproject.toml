@@ -1,0 +1,26 @@
+[project]
+name = "apps"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "sminamiafb9", email = "204111097+sminamiafb9@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastrtc[tts,vad]>=0.0.34",
+]
+
+[project.scripts]
+dbx-apps = "apps.main:entry_point"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+[[tool.uv.index]]
+url = "https://pypi.flatt.tech/simple/"
+default = true
+
+[tool.uv]
+exclude-newer = "7 days"

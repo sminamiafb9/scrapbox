@@ -1,6 +1,6 @@
-# Step1
+# Step2
 
-GradioのQuickStartを起動する
+FastRTCのQuickStartを起動する
 
 ## ローカル環境での起動
 
@@ -25,5 +25,5 @@ databricks apps create \
 databricks apps deploy \
     example-apps \
     --git-branch main  \
-    --git-source-code-path "learn_databricks_apps/step1"
+    --git-source-code-path "learn_databricks_apps/step2"
 ```
