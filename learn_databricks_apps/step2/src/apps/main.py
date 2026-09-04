@@ -25,6 +25,7 @@ from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketTransport,
 )
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -125,6 +126,7 @@ async def run_pipeline(websocket: WebSocket):
 app = FastAPI()
 
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
 
 app.mount(
     "/static",
