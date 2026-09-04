@@ -8,8 +8,12 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "fastrtc[tts,vad]>=0.0.34",
+    "fastapi>=0.141.1",
+    "gradio>=6.26.0",
+    "pipecat-ai[websocket]>=1.8.0",
+    "uvicorn>=0.52.4",
 ]
+
 
 [project.scripts]
 dbx-apps = "apps.main:entry_point"
