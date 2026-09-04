@@ -24,6 +24,7 @@ from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketParams,
     FastAPIWebsocketTransport,
 )
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -123,6 +124,14 @@ async def run_pipeline(websocket: WebSocket):
 
 app = FastAPI()
 
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
+
+app.mount(
+    "/static",
+    StaticFiles(directory=STATIC_DIR),
+    name="static",
+)
+
 
 app.mount(
     "/static",
@@ -133,7 +142,7 @@ app.mount(
 
 @app.get("/")
 async def index():
-    return RedirectResponse("/gradio")
+    return RedirectResponse(url="gradio", status_code=307)
 
 
 @app.websocket("/ws")
@@ -154,6 +163,7 @@ app = gr.mount_gradio_app(
     demo,
     path="/gradio",
     head='<script type="module" src="/static/frontend.js"></script>',
+    root_path="",
 )
 
 
@@ -164,6 +174,8 @@ def entry_point():
         app,
         host="0.0.0.0",
         port=port,
+        proxy_headers=True,
+        forwarded_allow_ips="*",
     )
 
 
