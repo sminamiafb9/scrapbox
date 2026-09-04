@@ -164,7 +164,7 @@ app = gr.mount_gradio_app(
     app,
     demo,
     path="/gradio",
-    head='<script type="module" src="/static/frontend.js"></script>',
+    head='<script type="module" src="/static/frontend.js/"></script>',
     root_path="",
 )
 
