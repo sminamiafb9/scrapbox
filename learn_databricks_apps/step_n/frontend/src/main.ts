@@ -20,7 +20,7 @@ const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
 
 const wsUrl = `${wsProtocol}//${location.host}/ws`;
 
-async function start() {
+export async function start() {
   console.log("Connecting:", wsUrl);
 
   await client.connect({
@@ -29,5 +29,16 @@ async function start() {
 
   console.log("Connected");
 }
+
+export async function stop() {
+  console.log("Disconnecting");
+
+  await client.disconnect();
+
+  console.log("Disconnected");
+}
+
+(window as any).startConversation = start;
+(window as any).stopConversation = stop;
 
 start().catch(console.error);

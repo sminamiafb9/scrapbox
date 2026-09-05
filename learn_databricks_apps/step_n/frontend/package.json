@@ -4,7 +4,7 @@
     "@pipecat-ai/websocket-transport": "^1.7.1"
   },
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --format=esm --outfile=../static/frontend.js"
+    "build": "esbuild src/main.ts --bundle --format=esm --outfile=../src/apps/static/frontend.js"
   },
   "devDependencies": {
     "esbuild": "^0.28.2",

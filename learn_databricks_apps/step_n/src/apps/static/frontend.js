@@ -17385,8 +17385,8 @@ $7f42eda74f1b1632$export$de21836fc42c6f9c.PLAYER_SAMPLE_RATE = 24e3;
 // src/main.ts
 var transport = new $7f42eda74f1b1632$export$de21836fc42c6f9c({
   serializer: new $a6c080dc51c9687f$export$4b2026f8e11b148a(),
-  recorderSampleRate: 48e3,
-  playerSampleRate: 48e3
+  recorderSampleRate: 16e3,
+  playerSampleRate: 16e3
 });
 var client = new $364c127d152b1085$export$8f7f86a77535f7a3({
   transport,
@@ -17402,7 +17402,18 @@ async function start() {
   });
   console.log("Connected");
 }
+async function stop() {
+  console.log("Disconnecting");
+  await client.disconnect();
+  console.log("Disconnected");
+}
+window.startConversation = start;
+window.stopConversation = stop;
 start().catch(console.error);
+export {
+  start,
+  stop
+};
 /*! Bundled license information:
 
 @daily-co/daily-js/dist/daily-esm.js:
