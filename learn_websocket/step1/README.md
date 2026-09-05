@@ -2,6 +2,14 @@
 
 echo chatの実装
 
+```
+# プロセス1
+uv run python backend/app.py
+
+# プロセス2
+uv run python frontend/app.py
+```
+
 ## シーケンス図
 
 ### Websocketの初期化
