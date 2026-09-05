@@ -66,7 +66,7 @@ sequenceDiagram
     Frontend-->>User: レスポンスを画面に表示
 ```
 
-### backend
+### Backend
 
 ```mermaid
 sequenceDiagram
