@@ -1,5 +1,3 @@
-import asyncio
-
 import gradio as gr
 import websocket
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -18,57 +16,20 @@ WS_URL = "ws://127.0.0.1:8000/ws"
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
 
-    input_queue = asyncio.Queue()
-    output_queue = asyncio.Queue()
-
-    async def receive_loop():
-        try:
-            while True:
-                audio_bytes = await websocket.receive_bytes()
-                await input_queue.put(audio_bytes)
-
-        except WebSocketDisconnect:
-            pass
-
-    async def send_loop():
-        try:
-            while True:
-                audio_bytes = await output_queue.get()
-                await websocket.send_bytes(audio_bytes)
-
-        except WebSocketDisconnect:
-            pass
-
-    async def process_loop():
-        while True:
-            audio_bytes = await input_queue.get()
-
-            # 音声処理
-            result = audio_bytes
-
-            await output_queue.put(result)
-
-    receive_task = asyncio.create_task(receive_loop())
-    send_task = asyncio.create_task(send_loop())
-    process_task = asyncio.create_task(process_loop())
+    print("Backend: WebSocket connected")
 
     try:
-        await receive_task
+        while True:
+            # Binary Frameを受信
+            audio_bytes = await websocket.receive_bytes()
 
-    finally:
-        for task in (
-            receive_task,
-            send_task,
-            process_task,
-        ):
-            task.cancel()
+            # print(f"Backend received: {len(audio_bytes)} bytes")
 
-        await asyncio.gather(
-            receive_task,
-            send_task,
-            process_task,
-            return_exceptions=True,
-        )
+            # Echo
+            await websocket.send_bytes(audio_bytes)
+
+    except WebSocketDisconnect:
+        print("Backend: WebSocket disconnected")
 
 
 # =========================
@@ -208,7 +169,8 @@ app = gr.mount_gradio_app(
 # Server
 # =========================
 
-if __name__ == "__main__":
+
+def entry_point():
     import uvicorn
 
     uvicorn.run(
@@ -216,3 +178,7 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=8000,
     )
+
+
+if __name__ == "__main__":
+    entry_point()
