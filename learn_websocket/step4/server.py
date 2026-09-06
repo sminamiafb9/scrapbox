@@ -1,7 +1,7 @@
 import asyncio
 
 import gradio as gr
-import websocket
+import websockets
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 app = FastAPI()
@@ -76,53 +76,26 @@ async def websocket_endpoint(websocket: WebSocket):
 # =========================
 
 
+class GradioSession:
+    def __init__(self, session_id: str):
+        self.session_id = session_id
+        self._ws: websockets.ClientConnection | None = None
+
+    async def connect(self) -> websockets.ClientConnection:
+        self._ws = await websockets.connect(WS_URL)
+
+    async def send_audio(self, audio: tuple[int, object]):
+        if audio is None or self._ws is None:
+            return
+
+        _sample_rate, audio_array = audio
+        audio_bytes = audio_array.tobytes()  # type: ignore
+        await self._ws.send(audio_bytes)
+
+
 def create_frontend():
 
-    connections: dict[str, websocket.WebSocket] = {}
-
-    def connect(request: gr.Request) -> websocket.WebSocket:
-        session_id = request.session_hash
-
-        if session_id is None:
-            raise ValueError("Session ID is required")
-
-        if session_id not in connections:
-            print(f"Frontend: WebSocket connecting session={session_id}")
-
-            connections[session_id] = websocket.create_connection(WS_URL)
-
-            print(f"Frontend: WebSocket connected session={session_id}")
-
-        return connections[session_id]
-
-    def send_audio(
-        audio: tuple[int, object],
-        request: gr.Request,
-    ):
-        if audio is None:
-            return None
-
-        sample_rate, audio_array = audio
-
-        # print(
-        #     f"Frontend received audio chunk: "
-        #     f"sample_rate={sample_rate}, "
-        #     f"samples={len(audio_array)}"  # type: ignore
-        # )
-
-        ws = connect(request)
-
-        # NumPy array → raw PCM bytes
-        audio_bytes = audio_array.tobytes()  # type: ignore
-
-        # print(f"Frontend send: {len(audio_bytes)} bytes")
-
-        # Binary Frameとして送信
-        ws.send(
-            audio_bytes,
-            opcode=websocket.ABNF.OPCODE_BINARY,
-        )
-
+    async def recv_audio():
         # BackendからEchoを受信
         response_bytes = ws.recv()
 
@@ -145,6 +118,9 @@ def create_frontend():
             sample_rate,
             response_array,
         )
+
+    def initialize_session(request: gr.Request):
+        session_id = request.session_hash
 
     def disconnect(request: gr.Request):
         session_id = request.session_hash
@@ -182,10 +158,10 @@ def create_frontend():
         audio_input.stream(
             fn=send_audio,
             inputs=[audio_input],
-            outputs=[audio_output],
             stream_every=0.5,
         )
 
+        demo.load(initialize_session)
         demo.unload(disconnect)
 
     return demo
