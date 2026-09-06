@@ -1,6 +1,6 @@
-# Step1
+# Step3
 
-GradioのQuickStartを起動する
+WebSocketでの音声のサーバー通信
 
 ## ローカル環境での起動
 
