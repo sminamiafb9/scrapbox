@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
-    "fastrtc>=0.0.34",
+    "fastrtc[vad]>=0.0.34",
     "gradio<6.0.0",
     "uvicorn[standard]>=0.52.4",
     "websocket-client>=1.9.0",
