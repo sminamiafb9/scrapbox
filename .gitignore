@@ -9,3 +9,4 @@ databricks.yml
 .vscode
 
 .databricks
+.DS_Store
