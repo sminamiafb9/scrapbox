@@ -13,6 +13,11 @@ resources:
           # 実行環境の指定(defaultという環境を指定)
           environment_key: default
 
+        - task_key: test_connect
+          notebook_task:
+            notebook_path: ../notebooks/test_connect.py
+          environment_key: default
+
       # Serverlessの実行環境定義
       environments:
         # 名前をつけて仕様を定義する
