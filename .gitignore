@@ -5,7 +5,6 @@ __pycache__/
 .gradio/
 node_modules/
 .databricks
-databricks.yml
 .vscode
 
 .databricks

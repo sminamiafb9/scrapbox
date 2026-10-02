@@ -1,0 +1,114 @@
+[project]
+name = "learn_databricks_work"
+version = "0.0.1"
+description = "A sample databricks project"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.48.0",
+    "pre-commit>=4.6.1",
+    "pyright>=1.1.411",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "pytest-randomly>=4.1.0",
+    "ruff>=0.16.1",
+]
+
+
+[tool.uv]
+exclude-newer = "7 days"
+
+[[tool.uv.index]]
+url = "https://pypi.flatt.tech/simple/"
+default = true
+
+
+[tool.uv.build-backend]
+include = ["src/learn_databricks_work/py.typed"]
+
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+exclude = [
+    ".git",
+    ".venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "SIM",    # flake8-simplify
+    "RUF",    # Ruff-specific
+]
+
+fixable = ["ALL"]
+
+unfixable = [
+    "B008",
+]
+
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+
+known-first-party = [
+    "learn_databricks_work",
+]
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+skip-magic-trailing-comma = false
+
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov=learn_databricks_work",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+testpaths = [
+    "tests",
+]
+
+
+[tool.poe.tasks]
+lint = "ruff check ."
+format = [
+    { cmd = "ruff format ." },
+    { cmd = "ruff check . --fix" },
+]
+typecheck = "pyright"
+test = "pytest tests"
+build = "uv build"
+
+[tool.poe.tasks.check]
+sequence = [
+    "lint",
+    "format",
+    "typecheck",
+    "test",
+    "build",
+]

@@ -1,0 +1,14 @@
+bundle:
+  # bundleの名前の名前（デプロイ先のパスなどに影響)
+  name: learn-databricks-work
+
+include:
+  - resources/*.yml
+
+targets:
+  # 環境の指定
+  dev:
+    # 開発モード
+    mode: development
+    # deployコマンドなどでデフォルトの環境として扱うか?
+    default: true
