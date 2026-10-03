@@ -113,3 +113,45 @@ sequence = [
     "test",
     "build",
 ]
+
+# for Google Colab with Cli
+[tool.poe.tasks.colab_deploy]
+shell = """
+    uv build &&
+    WHEEL=$(find dist -maxdepth 1 -name 'learn_colab_work-*.whl' -print -quit) &&
+    colab new -s learn_colab_work &&
+    colab upload "$WHEEL" "lib/$(basename "$WHEEL")" &&
+    colab install -s learn_colab_work "lib/$(basename "$WHEEL")"
+"""
+
+[tool.poe.tasks.colab_run]
+shell = "colab exec -s learn_colab_work -f $file"
+    [[tool.poe.tasks.colab_run.args]]
+    name = "file"
+    positional = true
+
+[tool.poe.tasks.colab_stop]
+cmd = "colab stop -s learn_colab_work"
+
+
+[tool.poe.tasks.colab_connect]
+shell = """
+COLAB_IP=$(echo "hostname -I" | colab ssh -s learn_colab_work | sed 's/[[:space:]]*$//')
+
+echo ""
+echo "Colab IP: $COLAB_IP"
+echo ""
+echo "VS Code:"
+echo "  Jupyter: Specify local or remote Jupyter server"
+echo "  Server URL: http://127.0.0.1:8889"
+echo ""
+
+ssh \
+  -o 'ProxyCommand=colab ssh --proxy-mode -s learn_colab_work' \
+  -o StrictHostKeyChecking=no \
+  -o UserKnownHostsFile=/dev/null \
+  -o LogLevel=ERROR \
+  -N \
+  -L "8889:${COLAB_IP}:9000" \
+  root@learn_colab_work
+"""
