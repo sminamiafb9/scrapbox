@@ -157,5 +157,30 @@ Poe => colab stop -s learn_colab_work
 ### カーネル利用のSSHフォワーディングタスク
 
 ```sh
+❯ uv run poe colab_connect
+      Built learn-colab-work @ file:///Users/minami_shotaro/Works/scrapbox/learn_colab_work                                                        
+Uninstalled 1 package in 1ms
+Installed 1 package in 1ms
+Poe => COLAB_IP=$(echo "hostname -I" | colab ssh -s learn_colab_work | sed 's/[[:space:]]*$//')
 
+echo ""
+echo "Colab IP: $COLAB_IP"
+echo ""
+echo "VS Code:"
+echo "  Jupyter: Specify local or remote Jupyter server"
+echo "  Server URL: http://127.0.0.1:8889"
+echo ""
+
+ssh -o 'ProxyCommand=colab ssh --proxy-mode -s learn_colab_work' -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -N -L "8889:${COLAB_IP}:9000" root@learn_colab_work
+[colab] session 'learn_colab_work' not found. Run `colab sessions` to list active sessions.
+
+Colab IP: 
+
+VS Code:
+  Jupyter: Specify local or remote Jupyter server
+  Server URL: http://127.0.0.1:8889
+
+[colab] Creating runtime 'learn_colab_work'...
+[colab] Creating session 'learn_colab_work'...
+[colab] Session READY.
 ```
