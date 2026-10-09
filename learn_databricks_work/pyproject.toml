@@ -5,7 +5,7 @@ description = "A sample databricks project"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
-    "databricks-connect>=18.3.5",
+    "databricks-connect>=18.0,<18.1",
 ]
 
 [build-system]
@@ -388,4 +388,4 @@ sequence = [
 ]
 
 [tool.databricks.environment]
-environment_version = "5"
+environment_version = "6"

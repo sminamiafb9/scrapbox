@@ -376,7 +376,7 @@ wheels = [
 
 [[package]]
 name = "databricks-connect"
-version = "18.3.5"
+version = "18.0.9"
 source = { registry = "https://pypi.flatt.tech/simple/" }
 dependencies = [
     { name = "databricks-sdk" },
@@ -393,7 +393,7 @@ dependencies = [
     { name = "zstandard" },
 ]
 wheels = [
-    { url = "https://pypi.flatt.tech/files/packages/10/9c/c4e2a852e9060b22843ac2f75af4fbdf60235bd5887bc340228391acf420/databricks_connect-18.3.5-py2.py3-none-any.whl", hash = "sha256:b856164658f82b0ef12951d7bd666fd7050de0967088ac88320aa80fde42b652", size = 2942916, upload-time = "2026-09-18T01:35:38.387Z" },
+    { url = "https://pypi.flatt.tech/files/packages/ea/b3/102aa62f97fe939057ac5fd4a715e1ad88861cbf6a2f8ecab353738ff9b2/databricks_connect-18.0.9-py2.py3-none-any.whl", hash = "sha256:520bbb6f62b703ddde46c315be84e64e0335e380863d886bb00a4c688a58d621", size = 2792574, upload-time = "2026-06-23T14:20:47.58Z" },
 ]
 
 [[package]]
@@ -654,7 +654,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "databricks-connect", specifier = ">=18.3.5" }]
+requires-dist = [{ name = "databricks-connect", specifier = ">=18.0,<18.1" }]
 
 [package.metadata.requires-dev]
 dev = [
