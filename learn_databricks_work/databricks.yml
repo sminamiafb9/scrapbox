@@ -12,3 +12,5 @@ targets:
     mode: development
     # deployコマンドなどでデフォルトの環境として扱うか?
     default: true
+    workspace:
+      host: https://dbc-73bff579-99eb.cloud.databricks.com
