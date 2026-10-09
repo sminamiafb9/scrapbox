@@ -18,6 +18,19 @@ resources:
             notebook_path: ../notebooks/test_connect.py
           environment_key: default
 
+        - task_key: deploy_udf
+          sql_task:
+            file:
+              path: ./queries/greet_udf.sql
+            warehouse_id: e514c24082e98afd
+
+        - task_key: test_func
+          depends_on:
+            - task_key: deploy_udf
+          notebook_task:
+            notebook_path: ../notebooks/test_func.py
+          environment_key: default
+
       # Serverlessの実行環境定義
       environments:
         # 名前をつけて仕様を定義する
