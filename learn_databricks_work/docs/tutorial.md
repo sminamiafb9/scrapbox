@@ -54,3 +54,39 @@ spark = DatabricksSession.builder.getOrCreate()
 
 - 拡張環境からDatabricksのパッケージ構成をpyproject.tomlに追記できるので、依存衝突を解決しつつvenvを作る
 - ipykernelを入れておくとvscodeでnotebookを実行しつつ、spark実行もできるので概ね開発端末で作業ができるようになる
+
+## databricks connectでudfを利用する
+
+通常のudfは起動できなかったが、Unity Catalog UDFであれば動作
+
+### udfの登録
+
+```sql
+CREATE OR REPLACE FUNCTION sandbox.shotaro_minami8e40a5.greet(name STRING)
+RETURNS STRING
+LANGUAGE PYTHON
+DETERMINISTIC
+ENVIRONMENT (
+  environment_version = '6'
+)
+AS $$
+greeting_prefix = "Hello"
+return f"{greeting_prefix}, {name}!"
+$$;
+```
+
+Unity Catalogに機能という項目があり、そこに関数が登録される
+
+```sql
+>> select sandbox.shotaro_minami8e40a5.greet("hoge");
+Hello, hoge!
+```
+
+sqlから呼び出せ、pysparkからもexprで呼び出せる
+
+### pysparkからの呼び出し
+
+```py
+from pyspark.sql.functions import expr
+res = df.withColumn("greet", expr("sandbox.shotaro_minami8e40a5.greet(name)"))
+```
