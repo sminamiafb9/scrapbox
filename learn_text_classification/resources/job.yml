@@ -5,11 +5,21 @@ resources:
 
       tasks:
         - task_key: ingest
-
           notebook_task:
             notebook_path: ../notebooks/ingest.py
             base_parameters:
               profile: sandbox
+              log_level: INFO
+          environment_key: default
+
+        - task_key: prepare
+          depends_on:
+            - task_key: ingest
+          notebook_task:
+            notebook_path: ../notebooks/prepare.py
+            base_parameters:
+              profile: sandbox
+              log_level: INFO
           environment_key: default
 
       environments:

@@ -1,3 +1,7 @@
 ingest:
   url: https://raw.githubusercontent.com/ids-cv/wrime/refs/heads/master/wrime-ver2.tsv
   volume: .tmp/raw_data 
+
+prepare:
+  raw_data: /Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/raw_data/wrime-ver2.tsv
+  dataset: sandbox.shotaro_minami8e40a5.wrime

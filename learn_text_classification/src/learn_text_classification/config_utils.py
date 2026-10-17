@@ -14,19 +14,26 @@ class IngestConfig:
 
 
 @dataclass
+class PrepareConfig:
+    raw_data: Path
+    dataset: str
+
+
+@dataclass
 class Config:
     ingest: IngestConfig
+    prepare: PrepareConfig
 
 
 PROFILE_ORDER = ("local", "sandbox")
-JOB_PARAMETER_KEY = "profile"
+PROFILE_PARAMETER_KEY = "profile"
 
 
 def load_config(config_dir: str | Path) -> Config:
     config_dir = Path(config_dir)
 
-    dbutils.widgets.text(JOB_PARAMETER_KEY, PROFILE_ORDER[0])
-    profile = dbutils.widgets.get(JOB_PARAMETER_KEY)
+    dbutils.widgets.text(PROFILE_PARAMETER_KEY, PROFILE_ORDER[0])
+    profile = dbutils.widgets.get(PROFILE_PARAMETER_KEY)
     if profile not in PROFILE_ORDER:
         raise ValueError(
             f"Invalid profile: {profile!r}.\nAvailable profiles: {PROFILE_ORDER}"
