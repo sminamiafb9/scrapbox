@@ -8,6 +8,8 @@ resources:
 
           notebook_task:
             notebook_path: ../notebooks/ingest.py
+            base_parameters:
+              profile: sandbox
           environment_key: default
 
       environments:
@@ -16,10 +18,3 @@ resources:
             environment_version: "6"
             dependencies:
               - ../dist/learn_text_classification-0.0.1-py3-none-any.whl
-
-      environment_variables:
-        - environment_variables_key: app_config
-          spec:
-            variables:
-              APP_PROFILE: sandbox
-              LOG_LEVEL: INFO

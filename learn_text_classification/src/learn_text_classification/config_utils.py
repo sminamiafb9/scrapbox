@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-import os
 from pathlib import Path
 from typing import cast
 
+from databricks.sdk.runtime import dbutils
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
@@ -19,20 +19,21 @@ class Config:
 
 
 PROFILE_ORDER = ("local", "sandbox")
-APP_PROFILE_ENV_KEY = "APP_PROFILE"
+JOB_PARAMETER_KEY = "profile"
 
 
 def load_config(config_dir: str | Path) -> Config:
     config_dir = Path(config_dir)
 
-    config: DictConfig = OmegaConf.structured(Config)
-
-    profile = os.getenv(APP_PROFILE_ENV_KEY, PROFILE_ORDER[0])
+    dbutils.widgets.text(JOB_PARAMETER_KEY, PROFILE_ORDER[0])
+    profile = dbutils.widgets.get(JOB_PARAMETER_KEY)
     if profile not in PROFILE_ORDER:
         raise ValueError(
             f"Invalid profile: {profile!r}.\nAvailable profiles: {PROFILE_ORDER}"
         )
     logger.info("Using profile: {}", profile)
+
+    config: DictConfig = OmegaConf.structured(Config)
 
     profile_index = PROFILE_ORDER.index(profile)
 
