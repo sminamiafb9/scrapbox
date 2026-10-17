@@ -1,0 +1,25 @@
+resources:
+  jobs:
+    learn_text_classification:
+      name: learn_text_classification
+
+      tasks:
+        - task_key: ingest
+
+          notebook_task:
+            notebook_path: ../notebooks/ingest.py
+          environment_key: default
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "6"
+            dependencies:
+              - ../dist/learn_text_classification-0.0.1-py3-none-any.whl
+
+      environment_variables:
+        - environment_variables_key: app_config
+          spec:
+            variables:
+              APP_PROFILE: sandbox
+              LOG_LEVEL: INFO

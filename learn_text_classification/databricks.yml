@@ -1,0 +1,12 @@
+bundle:
+  name: learn_text_classification
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://dbc-73bff579-99eb.cloud.databricks.com/

@@ -1,0 +1,3 @@
+ingest:
+  url: https://raw.githubusercontent.com/ids-cv/wrime/refs/heads/master/wrime-ver2.tsv
+  volume: .tmp/raw_data 
