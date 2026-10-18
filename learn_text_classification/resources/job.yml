@@ -7,20 +7,26 @@ resources:
         - task_key: ingest
           notebook_task:
             notebook_path: ../notebooks/ingest.py
-            base_parameters:
+            base_parameters: &default_params
               profile: sandbox
               log_level: INFO
-          environment_key: default
+          environment_key: &default_env default
 
         - task_key: prepare
           depends_on:
             - task_key: ingest
           notebook_task:
             notebook_path: ../notebooks/prepare.py
-            base_parameters:
-              profile: sandbox
-              log_level: INFO
-          environment_key: default
+            base_parameters: *default_params
+          environment_key: *default_env
+
+        - task_key: data_profiling
+          depends_on:
+            - task_key: prepare
+          notebook_task:
+            notebook_path: ../notebooks/data_profiling.py
+            base_parameters: *default_params
+          environment_key: *default_env
 
       environments:
         - environment_key: default
