@@ -28,6 +28,14 @@ resources:
             base_parameters: *default_params
           environment_key: *default_env
 
+        - task_key: data_preprocessing
+          depends_on:
+            - task_key: prepare
+          notebook_task:
+            notebook_path: ../notebooks/04_data_preprocessing.py
+            base_parameters: *default_params
+          environment_key: *default_env
+
       environments:
         - environment_key: default
           spec:

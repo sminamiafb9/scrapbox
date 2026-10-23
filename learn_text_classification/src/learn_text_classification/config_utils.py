@@ -8,6 +8,11 @@ from omegaconf import DictConfig, OmegaConf
 
 
 @dataclass
+class PreprocessingConfig:
+    dataset: str
+
+
+@dataclass
 class IngestConfig:
     url: str
     volume: Path
@@ -23,6 +28,7 @@ class PrepareConfig:
 class Config:
     ingest: IngestConfig
     prepare: PrepareConfig
+    preprocessing: PreprocessingConfig
 
 
 PROFILE_ORDER = ("local", "sandbox")
