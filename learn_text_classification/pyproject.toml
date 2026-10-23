@@ -392,5 +392,11 @@ databricks bundle run -t $target $job
     default = "learn_text_classification"
     options = ["-n", "--job-name"]
 
+[tool.poe.tasks.bundle_test]
+sequence = [
+    "check",
+    "bundle_deploy",
+]
+
 [tool.databricks.environment]
 environment_version = "5"
