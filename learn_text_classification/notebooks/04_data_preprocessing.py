@@ -6,6 +6,7 @@ import seaborn as sns
 
 from learn_text_classification import config_utils, logging_utils
 
+# COMMAND ----------
 logging_utils.setup_logging()
 config = config_utils.load_config("./config")
 
@@ -64,8 +65,12 @@ plt.tight_layout()
 plt.show()
 
 # COMMAND ----------
-
-df.write.format("delta").mode("overwrite").saveAsTable(config.preprocessing.dataset)
+(
+    df.write.format("delta")
+    .mode("overwrite")
+    .option("overwriteSchema", "true")
+    .saveAsTable(config.preprocessing.dataset)
+)
 
 loaded = spark.read.table(config.preprocessing.dataset)
 loaded.printSchema()

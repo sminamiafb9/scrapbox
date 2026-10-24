@@ -4,6 +4,7 @@ from pyspark.sql import functions as F
 
 from learn_text_classification import config_utils, logging_utils
 
+# COMMAND ----------
 logging_utils.setup_logging()
 config = config_utils.load_config("./config")
 
@@ -39,6 +40,7 @@ reader_cols = [f"Avg. Readers_{emotion}" for emotion in emotions] + [
 ]
 
 df_simple = raw_data.select(
+    F.expr("uuid()").alias("Id"),
     *[F.col(f"`{col}`") for col in metadata_cols],
     F.when(F.col("`Train/Dev/Test`").isNull(), F.lit("train"))
     .otherwise(F.col("`Train/Dev/Test`"))
@@ -50,8 +52,12 @@ df_simple.printSchema()
 logging_utils.show_df(df_simple, level="DEBUG")
 
 # COMMAND ----------
-
-df_simple.write.format("delta").mode("overwrite").saveAsTable(config.prepare.dataset)
+(
+    df_simple.write.format("delta")
+    .mode("overwrite")
+    .option("overwriteSchema", "true")
+    .saveAsTable(config.prepare.dataset)
+)
 
 loaded = spark.read.table(config.prepare.dataset)
 loaded.printSchema()

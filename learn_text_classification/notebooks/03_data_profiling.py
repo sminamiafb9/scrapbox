@@ -7,13 +7,13 @@ import seaborn as sns
 
 from learn_text_classification import config_utils, logging_utils
 
+# COMMAND ----------
 logging_utils.setup_logging()
 config = config_utils.load_config("./config")
 
 spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
-
 df = spark.table(config.prepare.dataset)
 logging_utils.show_df(df, level="DEBUG")
 
@@ -30,14 +30,13 @@ labels = [
 ]
 
 long_df = df.unpivot(
-    ids=["Sentence", "Split"],
+    ids=["Id", "Split"],
     values=[F.col(label) for label in labels],
     variableColumnName="Emotion",
     valueColumnName="Intensity",
 )
 
 # COMMAND ----------
-
 frequency_table = (
     long_df.groupBy("Split", "Emotion", "Intensity")
     .agg(F.count("*"))
@@ -86,5 +85,3 @@ g.figure.subplots_adjust(top=0.9, hspace=0.4)
 g.figure.suptitle("Emotion Intensity Ratio Comparison Across Splits", fontsize=16)
 
 plt.show()
-
-# COMMAND ----------
