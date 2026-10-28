@@ -8,3 +8,14 @@ prepare:
 
 preprocessing:
   dataset: sandbox.shotaro_minami8e40a5.wrime_binary
+
+experiments:
+  baseline:
+    steps:
+      embedding:
+        run: 11_embedding.py
+        params:
+          cache_folder: ./.cache/hf
+          embedding_batch_size: 1000
+          embedding_model_name: cl-nagoya/ruri-v3-30m
+          embedding_dataset: sandbox.shotaro_minami8e40a5.wrime_embeddings

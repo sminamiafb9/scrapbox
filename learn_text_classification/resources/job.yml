@@ -4,7 +4,7 @@ resources:
       name: learn_text_classification
 
       tasks:
-        - task_key: ingest
+        - task_key: data_ingest
           notebook_task:
             notebook_path: ../notebooks/01_data_ingest.py
             base_parameters: &default_params
@@ -12,7 +12,7 @@ resources:
               log_level: INFO
           environment_key: &default_env default
 
-        - task_key: prepare
+        - task_key: data_prepare
           depends_on:
             - task_key: ingest
           notebook_task:
@@ -34,6 +34,16 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/04_data_preprocessing.py
             base_parameters: *default_params
+          environment_key: *default_env
+
+        - task_key: model_training
+          depends_on:
+            - task_key: data_preprocessing
+          notebook_task:
+            notebook_path: ../notebooks/05_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_name: baseline
           environment_key: *default_env
 
       environments:

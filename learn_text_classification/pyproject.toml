@@ -10,6 +10,7 @@ dependencies = [
     "omegaconf>=2.4.0",
     "pyyaml>=6.0.3",
     "seaborn>=0.13.2",
+    "sentence-transformers>=5.7.0",
 ]
 
 [build-system]
