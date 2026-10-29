@@ -26,5 +26,6 @@ for step_name, step_config in experiment.steps.items():
         {
             "experiment_name": experiment_name,
             "step_name": step_name,
-        },
+        }
+        | dbutils.widgets.getAll(),  # type: ignore
     )

@@ -10,11 +10,12 @@ resources:
             base_parameters: &default_params
               profile: sandbox
               log_level: INFO
+              runtime_environment: databricks
           environment_key: &default_env default
 
         - task_key: data_prepare
           depends_on:
-            - task_key: ingest
+            - task_key: data_ingest
           notebook_task:
             notebook_path: ../notebooks/02_data_prepare.py
             base_parameters: *default_params
@@ -22,7 +23,7 @@ resources:
 
         - task_key: data_profiling
           depends_on:
-            - task_key: prepare
+            - task_key: data_prepare
           notebook_task:
             notebook_path: ../notebooks/03_data_profiling.py
             base_parameters: *default_params
@@ -30,7 +31,7 @@ resources:
 
         - task_key: data_preprocessing
           depends_on:
-            - task_key: prepare
+            - task_key: data_prepare
           notebook_task:
             notebook_path: ../notebooks/04_data_preprocessing.py
             base_parameters: *default_params

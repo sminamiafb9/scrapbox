@@ -2,13 +2,16 @@
 from databricks.connect import DatabricksSession
 from pyspark.sql import functions as F
 
-from learn_text_classification import config_utils, logging_utils
+from learn_text_classification import config_utils, job_utils, logging_utils
 
 # COMMAND ----------
 logging_utils.setup_logging()
 config = config_utils.load_config("./config")
 
 spark = DatabricksSession.builder.getOrCreate()
+
+# COMMAND ----------
+job_utils.exit_if_table_exists(config.prepare.dataset)
 
 # COMMAND ----------
 raw_data = (

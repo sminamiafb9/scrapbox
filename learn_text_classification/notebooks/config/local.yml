@@ -18,4 +18,4 @@ experiments:
           cache_folder: ./.cache/hf
           embedding_batch_size: 1000
           embedding_model_name: cl-nagoya/ruri-v3-30m
-          embedding_dataset: sandbox.shotaro_minami8e40a5.wrime_embeddings
+          dataset: sandbox.shotaro_minami8e40a5.wrime_embeddings

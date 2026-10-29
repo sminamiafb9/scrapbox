@@ -15,7 +15,7 @@ from pyspark.sql.types import (
 )
 from sentence_transformers import SentenceTransformer
 
-from learn_text_classification import config_utils, logging_utils
+from learn_text_classification import config_utils, job_utils, logging_utils
 
 # COMMAND ----------
 dbutils.widgets.text("experiment_name", "baseline")
@@ -27,11 +27,11 @@ step_name = dbutils.widgets.get("step_name")
 
 # COMMAND ----------
 @dataclass
-class EmbeddingParams:
+class EmbeddingConfig:
     cache_folder: Path
     embedding_batch_size: int
     embedding_model_name: str
-    embedding_dataset: str
+    dataset: str
 
 
 # COMMAND ----------
@@ -41,10 +41,13 @@ embedding_config = config_utils.resolve_step_config(
     config,
     experiment_name,
     step_name,
-    EmbeddingParams,
+    EmbeddingConfig,
 )
 
 spark = DatabricksSession.builder.getOrCreate()
+
+# COMMAND ----------
+job_utils.exit_if_table_exists(embedding_config.params.dataset)
 
 # COMMAND ----------
 df = spark.read.table(config.preprocessing.dataset)
@@ -67,7 +70,7 @@ schema = StructType(
 )
 empty_df = spark.createDataFrame([], schema)
 empty_df.write.format("delta").mode("overwrite").saveAsTable(
-    embedding_config.params.embedding_dataset
+    embedding_config.params.dataset
 )
 
 # COMMAND ----------
@@ -99,7 +102,7 @@ while True:
     batch_df = spark.createDataFrame(rows, schema=schema)
 
     batch_df.write.format("delta").mode("append").saveAsTable(
-        embedding_config.params.embedding_dataset
+        embedding_config.params.dataset
     )
 
     done_count += len(batch)
