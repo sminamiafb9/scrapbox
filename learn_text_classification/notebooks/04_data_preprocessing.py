@@ -1,5 +1,6 @@
 # Databricks notebook source
 from databricks.connect import DatabricksSession
+from loguru import logger
 import matplotlib.pyplot as plt
 from pyspark.sql import functions as F
 import seaborn as sns
@@ -41,8 +42,32 @@ df = df.withColumns(
     }
 )
 
+# Remove rows where all emotion labels are null
+df = df.filter(
+    F.coalesce(
+        F.exists(
+            F.array(*[F.col(c).isNotNull() for c in label_cols]),
+            lambda x: x,
+        ),
+        F.lit(False),
+    )
+)
+
 df.printSchema()
 logging_utils.show_df(df, level="DEBUG")
+
+# COMMAND ----------
+null_counts = (
+    df.groupBy("Split")
+    .agg(
+        *[
+            F.count(F.when(F.col(c).isNull(), 1)).alias(c)
+            for c in ["Id", "Split", *label_cols]
+        ]
+    )
+    .toPandas()
+)
+logger.info(null_counts.T)
 
 # COMMAND ----------
 ratio_df = df.groupBy("Split").agg(*[F.avg(F.col(c)).alias(c) for c in label_cols])

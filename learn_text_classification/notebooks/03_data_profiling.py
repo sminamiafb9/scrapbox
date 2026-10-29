@@ -29,6 +29,31 @@ labels = [
     "Trust",
 ]
 
+# COMMAND ----------
+null_counts = (
+    df.groupBy("Split")
+    .agg(
+        *[
+            F.count(F.when(F.col(c).isNull(), 1)).alias(c)
+            for c in ["Id", "Split", *labels]
+        ]
+    )
+    .toPandas()
+)
+logger.info(null_counts.T)
+
+# COMMAND ----------
+null_pattern = (
+    df.groupBy(*[F.col(c).isNull().alias(f"{c}_is_null") for c in labels])
+    .agg(
+        F.count("*").alias("row_count"),
+        F.first("Split").alias("Split"),
+    )
+    .orderBy(F.desc("row_count"))
+).toPandas()
+logger.info(null_pattern.T)
+
+# COMMAND ----------
 long_df = df.unpivot(
     ids=["Id", "Split"],
     values=[F.col(label) for label in labels],
