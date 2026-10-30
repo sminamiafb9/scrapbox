@@ -1,6 +1,6 @@
 # Databricks notebook source
 from dataclasses import dataclass
-from itertools import islice
+import math
 from pathlib import Path
 import uuid
 
@@ -32,7 +32,9 @@ step_name = dbutils.widgets.get("step_name")
 @dataclass
 class EmbeddingConfig:
     cache_folder: Path
-    embedding_batch_size: int
+    batch_size: int
+    transfer_batch_size: int
+
     embedding_model_name: str
     dataset: str
 
@@ -80,36 +82,80 @@ empty_df.write.format("delta").mode("overwrite").saveAsTable(temporary_table)
 
 # COMMAND ----------
 all_count = df.count()
-iterator = df.toLocalIterator()
+batch_size = embedding_config.params.batch_size
+transfer_batch_size = embedding_config.params.transfer_batch_size
+batch_count = max(1, math.ceil(all_count / transfer_batch_size))
 
+logger.info(
+    "Starting embedding: total={}, transfer_batch_size={}, "
+    "embedding_batch_size={}, batch_count={}",
+    all_count,
+    transfer_batch_size,
+    batch_size,
+    batch_count,
+)
+
+# COMMAND ----------
+partitioned_df = df.withColumn(
+    "_batch_id",
+    F.pmod(
+        F.xxhash64(F.col("Id")),
+        F.lit(batch_count),
+    ),
+)
+logging_utils.show_df(partitioned_df, level="DEBUG")
+
+# COMMAND ----------
 done_count = 0
-batch_size = embedding_config.params.embedding_batch_size
-while True:
-    batch = list(islice(iterator, batch_size))
+for batch_id in range(batch_count):
+    batch = (
+        partitioned_df.filter(F.col("_batch_id") == batch_id)
+        .drop("_batch_id")
+        .collect()
+    )
     if not batch:
         break
 
     ids = [row["Id"] for row in batch]
     texts = [row["Sentence"] if row["Sentence"] is not None else "" for row in batch]
 
-    embeddings = embedding_model.encode(  # type: ignore
-        texts,
-        batch_size=batch_size,
-        convert_to_numpy=True,
-        normalize_embeddings=True,
-        show_progress_bar=False,
+    for start in range(0, len(batch), batch_size):
+        end = start + batch_size
+
+        chunk_ids = ids[start:end]
+        chunk_texts = texts[start:end]
+
+        embeddings = embedding_model.encode(  # type: ignore
+            chunk_texts,
+            batch_size=batch_size,
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+        )
+
+        rows = [
+            (id_, embedding.tolist())
+            for id_, embedding in zip(
+                chunk_ids,
+                embeddings,  # type: ignore
+                strict=False,
+            )
+        ]
+
+        batch_df = spark.createDataFrame(rows, schema=schema)
+        batch_df.write.format("delta").mode("append").saveAsTable(temporary_table)
+        done_count += len(chunk_ids)
+
+    logger.info(
+        "Processed: {}/{} (batch {}/{}, batch_size={})",
+        done_count,
+        all_count,
+        batch_id + 1,
+        batch_count,
+        len(batch),
     )
 
-    rows = [
-        (id_, embedding.tolist())
-        for id_, embedding in zip(ids, embeddings, strict=False)  # type: ignore
-    ]
-    batch_df = spark.createDataFrame(rows, schema=schema)
-
-    batch_df.write.format("delta").mode("append").saveAsTable(temporary_table)
-
-    done_count += len(batch)
-    logger.info("Processed: {}/{}", done_count, all_count)
+logger.info("Embedding completed: {}/{}", done_count, all_count)
 
 # COMMAND ----------
 embeddings = spark.read.table(temporary_table)
