@@ -2,10 +2,13 @@
 from dataclasses import dataclass
 from itertools import islice
 from pathlib import Path
+import uuid
 
 from databricks.connect import DatabricksSession
 from databricks.sdk.runtime import dbutils
 from loguru import logger
+from pyspark.ml.functions import array_to_vector
+from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
     FloatType,
@@ -68,10 +71,12 @@ schema = StructType(
         StructField("Embedding", ArrayType(FloatType()), True),
     ]
 )
+
+temporary_prefix = uuid.uuid4().hex
+temporary_table = f"{embedding_config.params.dataset}_{temporary_prefix}"
+
 empty_df = spark.createDataFrame([], schema)
-empty_df.write.format("delta").mode("overwrite").saveAsTable(
-    embedding_config.params.dataset
-)
+empty_df.write.format("delta").mode("overwrite").saveAsTable(temporary_table)
 
 # COMMAND ----------
 all_count = df.count()
@@ -101,9 +106,32 @@ while True:
     ]
     batch_df = spark.createDataFrame(rows, schema=schema)
 
-    batch_df.write.format("delta").mode("append").saveAsTable(
-        embedding_config.params.dataset
-    )
+    batch_df.write.format("delta").mode("append").saveAsTable(temporary_table)
 
     done_count += len(batch)
     logger.info("Processed: {}/{}", done_count, all_count)
+
+# COMMAND ----------
+embeddings = spark.read.table(temporary_table)
+logging_utils.show_df(embeddings, level="DEBUG")
+
+# COMMAND ----------
+datasets = (
+    df.join(embeddings, on="Id", how="inner")
+    .withColumn("features", array_to_vector(F.col("Embedding")))
+    .drop(F.col("Embedding"))
+)
+
+(
+    datasets.write.format("delta")
+    .mode("overwrite")
+    .option("overwriteSchema", "true")
+    .saveAsTable(embedding_config.params.dataset)
+)
+
+loaded = spark.read.table(embedding_config.params.dataset)
+loaded.printSchema()
+logging_utils.show_df(loaded, level="INFO")
+
+# COMMAND ----------
+spark.sql(f"drop table if exists {temporary_table}")
