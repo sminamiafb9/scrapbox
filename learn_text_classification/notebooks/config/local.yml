@@ -16,6 +16,21 @@ experiments:
         run: 11_embedding.py
         params:
           cache_folder: ./.cache/hf
-          embedding_batch_size: 1000
+          batch_size: 500
+          transfer_batch_size: 5000
           embedding_model_name: cl-nagoya/ruri-v3-30m
           dataset: sandbox.shotaro_minami8e40a5.wrime_embeddings
+      training:
+        run: 21_hyperparameter_tuning.py
+        params:
+          trainer: 31_logistic_regression.py
+          direction: maximize
+          fixed_params:
+            max_itr: 100
+          suggest_params:
+            regularization:
+              method: suggest_float
+              params: {low: 1e-05, high: 10.0, log: true}
+            elastic_net:
+              method: suggest_float
+              params: {low: 0.0, high: 1.0}
