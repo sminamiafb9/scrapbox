@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+from typing import Literal, TypeGuard, get_args
 
 from databricks.sdk.runtime import dbutils
 from loguru import logger
@@ -8,20 +9,25 @@ from pyspark.sql import SparkSession
 spark = SparkSession.builder.getOrCreate()
 
 
-RUNTIME_ORDER = ("local", "databricks")
 RUNTIME_ENVIRONMENT_KEY = "runtime_environment"
 
-_runtime: str | None = None
+Runtime = Literal["local", "databricks"]
+RUNTIME_ORDER = get_args(Runtime)
+_runtime: Runtime | None = None
 
 
-def check_runtime_environment() -> str:
+def is_valid_runtime(value: str) -> TypeGuard[Runtime]:
+    return value in RUNTIME_ORDER
+
+
+def check_runtime_environment():
     global _runtime
     if _runtime is not None:
         return _runtime
 
     dbutils.widgets.text(RUNTIME_ENVIRONMENT_KEY, RUNTIME_ORDER[0])
     runtime = dbutils.widgets.get(RUNTIME_ENVIRONMENT_KEY)
-    if runtime not in RUNTIME_ORDER:
+    if not is_valid_runtime(runtime):
         raise ValueError(f"Invalid runtime environment: {runtime}")
     logger.info("Runtime environment: {runtime}")
     _runtime = runtime
