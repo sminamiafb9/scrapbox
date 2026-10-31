@@ -1,2 +1,9 @@
 ingest:
   volume: /Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/raw_data
+
+experiments:
+  baseline:
+    steps:
+      embedding:
+        params:
+          cache_folder: /Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/cache/hf
