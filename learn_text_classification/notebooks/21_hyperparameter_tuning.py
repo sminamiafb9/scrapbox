@@ -137,4 +137,4 @@ for emotion in label_cols:
         hp_tuning_config.params.optimize_params,
     )
 
-    logger.info(f"{emotion= }, {best_value = }, {best_params = }")
+    logger.info(f"{emotion = }, {best_value = }, {best_params = }")
