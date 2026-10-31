@@ -62,3 +62,24 @@ auc = evaluator.evaluate(predictions, {evaluator.labelCol: params.label_col})
 # COMMAND ----------
 outputs = {"score": auc}
 logger.info(f"{outputs = }")
+
+# 検証
+# # COMMAND ----------
+# import mlflow
+#
+# profile = "sandbox"
+# mlflow.set_tracking_uri(f"databricks://{profile}")
+# mlflow.set_registry_uri("databricks-uc")
+#
+# mlflow.set_experiment("/test-mlflow")
+# with mlflow.start_run(run_name="sample2"):
+#     params = {"hoge": 1, "piyo": 2}
+#     mlflow.log_params(params)
+#
+#     metrics = {"accuracy": 0.95, "precision": 0.93, "recall": 0.91, "f1_score": 0.92}
+#     mlflow.log_metrics(metrics)
+#     mlflow.set_tag("test-tag", "test-value")
+#     print("MLflowへの記録が完了しました")
+#
+# # COMMAND ----------
+#
