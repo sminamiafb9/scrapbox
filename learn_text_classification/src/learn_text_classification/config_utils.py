@@ -26,7 +26,7 @@ class ResolvedStepConfig[P]:
 @dataclass
 class ExperimentConfig:
     steps: dict[StepKey, StepConfig]
-    params: dict[str, Any] = field(default_factory=lambda: {})
+    shared_params: dict[str, Any] = field(default_factory=lambda: {})
 
     def get_step(self, step_name: str) -> StepConfig | None:
         return self.steps.get(step_name, None)
