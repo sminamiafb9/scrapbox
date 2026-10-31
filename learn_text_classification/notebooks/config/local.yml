@@ -26,7 +26,7 @@ experiments:
           trainer: 31_logistic_regression.py
           direction: maximize
           fixed_params:
-            max_itr: 100
+            max_itr: 30
           suggest_params:
             regularization:
               method: suggest_float

@@ -9,8 +9,6 @@ from pyspark.ml.classification import LogisticRegression, LogisticRegressionMode
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pyspark.sql import functions as F
 
-from learn_text_classification import logging_utils
-
 
 # COMMAND ----------
 @dataclass
@@ -37,9 +35,6 @@ spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
 datasets = spark.read.table(params.dataset)
-logging_utils.show_df(datasets, level="DEBUG")
-
-# COMMAND ----------
 train_df = datasets.filter(F.col("Split") == "train")
 dev_df = datasets.filter(F.col("Split") == "dev")
 
