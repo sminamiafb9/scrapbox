@@ -1,27 +1,26 @@
-from typing import Any, Dict, List
+from typing import Any
+
 import mlflow
 from mlflow.tracking import MlflowClient
-import pandas as pd
-import os
 
 # Assuming this function exists in the same module to determine the runtime environment
 # and set the appropriate MLflow tracking URI/registry.
 # For this implementation, we will assume it returns "local" or "databricks".
 # def check_runtime_environment() -> str:
 #     # Placeholder: Replace with actual implementation
-#     return "local" 
+#     return "local"
 
 
 def track_values(
     experiment_name: str,
     run_name: str,
-    parent_run_name: str = None,  # Added for nesting support
-    params: Dict[str, Any] = None,
-    metrics: Dict[str, Any] = None,
-    tags: Dict[str, Any] = None,
-    artifacts: List[Any] = None,
-    model: Any = None,
-    model_flavor: Any = None,
+    parent_run_name: str | None = None,  # Added for nesting support
+    params: dict[str, Any] | None = None,
+    metrics: dict[str, Any] | None = None,
+    tags: dict[str, Any] | None = None,
+    artifacts: list[Any] | None = None,
+    model: Any | None = None,
+    model_flavor: Any | None = None,
     profile: str = "sandbox",
 ):
     """
@@ -40,17 +39,19 @@ def track_values(
         model_flavor: The flavor/version of the model.
         profile: Tracking profile ("local" or "databricks").
     """
-    
+
     # 1. Environment Setup
-    runtime = "local" # Placeholder for actual check_runtime_environment() result
+    runtime = "local"  # Placeholder for actual check_runtime_environment() result
     if runtime == "local":
-        mlflow.set_tracking_uri(f"file://") # Local run tracking
+        mlflow.set_tracking_uri("file://")  # Local run tracking
         mlflow.set_registry_uri("local-run")
     elif runtime == "databricks":
         mlflow.set_tracking_uri(f"databricks://{profile}")
         mlflow.set_registry_uri("databricks-uc")
     else:
-        print(f"Warning: Unknown runtime environment '{runtime}'. MLflow not configured.")
+        print(
+            f"Warning: Unknown runtime environment '{runtime}'. MLflow not configured."
+        )
         return
 
     client = MlflowClient()
@@ -58,9 +59,9 @@ def track_values(
     # 2. Experiment Management
     experiment = mlflow.set_experiment(experiment_name)
     experiment_id = experiment.experiment_id
-    
+
     # 3. Parent and Run Name Management (Nesting Logic)
-    
+
     # 3-3. Handle parent_run_name (Search or Create Parent Run)
     parent_run_id = None
     if parent_run_name:
@@ -75,9 +76,11 @@ def track_values(
             print(f"Found existing parent run: {parent_run_id}")
         else:
             print(f"Parent run '{parent_run_name}' not found. Creating new parent run.")
-            parent_run = mlflow.start_run(experiment_id=experiment_id, run_name=parent_run_name)
+            parent_run = mlflow.start_run(
+                experiment_id=experiment_id, run_name=parent_run_name
+            )
             parent_run_id = parent_run.info.run_id
-    
+
     # 3-4. Handle run_name (Search or Create Run, respecting nesting)
     final_run_id = None
     if run_name:
@@ -86,7 +89,7 @@ def track_values(
         if parent_run_name:
             # If a parent exists, search within it
             filter_string += f" AND tags.mlflow.runId LIKE '%/{parent_run_name}/%'"
-        
+
         runs = client.search_runs(
             experiment_ids=[experiment_id],
             filter_string=filter_string,
@@ -100,18 +103,17 @@ def track_values(
         else:
             print(f"Run '{run_name}' not found. Starting new run.")
             final_run_id = mlflow.start_run(
-                experiment_id=experiment_id, 
-                run_name=run_name
+                experiment_id=experiment_id, run_name=run_name
             ).info.run_id
 
     if not final_run_id:
         print("Error: Could not determine the final run ID. Exiting.")
         return
-    
+
     run = mlflow.start_run(run_id=final_run_id)
 
     # 4. Tracking Values
-    
+
     # 4-2. Log Experiment Name (already done by set_experiment, but we can log it explicitly)
     # 4-3. Log Parent/Run names as run tags for lineage
     if parent_run_name:
@@ -119,10 +121,10 @@ def track_values(
     if run_name:
         run.set_tag("run_name", run_name)
         if parent_run_name:
-             run.set_tag("parent_run_id", parent_run_id)
+            run.set_tag("parent_run_id", parent_run_id)
 
     # 4-5. Track parameters, metrics, tags, artifacts, model
-    
+
     # Log Parameters
     if params:
         mlflow.log_params(params)
@@ -153,10 +155,11 @@ def track_values(
                 print(f"Logged artifact: {artifact_path}")
             except FileNotFoundError:
                 print(f"Warning: Artifact not found at {artifact_path}. Skipping.")
-    
+
     # 5. End Run
     mlflow.end_run()
     print(f"Successfully finished tracking run: {run.info.run_id}")
+
 
 # Example usage stub (to be replaced by actual implementation in script)
 # if __name__ == "__main__":
