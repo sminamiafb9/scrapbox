@@ -33,13 +33,7 @@ label_cols = [
 ]
 
 df = df.withColumns(
-    {
-        col: F.when(F.col(col) >= 1, 1)
-        .when(F.col(col) == 0, 0)
-        .otherwise(None)
-        .cast("int")
-        for col in label_cols
-    }
+    {col: F.when(F.col(col) >= 1, 1).when(F.col(col) == 0, 0).otherwise(None).cast("int") for col in label_cols}
 )
 
 # Remove rows where all emotion labels are null
@@ -59,12 +53,7 @@ logging_utils.show_df(df, level="DEBUG")
 # COMMAND ----------
 null_counts = (
     df.groupBy("Split")
-    .agg(
-        *[
-            F.count(F.when(F.col(c).isNull(), 1)).alias(c)
-            for c in ["Id", "Split", *label_cols]
-        ]
-    )
+    .agg(*[F.count(F.when(F.col(c).isNull(), 1)).alias(c) for c in ["Id", "Split", *label_cols]])
     .toPandas()
 )
 logger.info(null_counts.T)
@@ -93,12 +82,7 @@ plt.tight_layout()
 plt.show()
 
 # COMMAND ----------
-(
-    df.write.format("delta")
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
-    .saveAsTable(config.preprocessing.dataset)
-)
+(df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(config.preprocessing.dataset))
 
 loaded = spark.read.table(config.preprocessing.dataset)
 loaded.printSchema()

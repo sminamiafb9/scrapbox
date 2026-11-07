@@ -38,16 +38,12 @@ emotions = [
     "Trust",
 ]
 
-reader_cols = [f"Avg. Readers_{emotion}" for emotion in emotions] + [
-    "Avg. Readers_Sentiment"
-]
+reader_cols = [f"Avg. Readers_{emotion}" for emotion in emotions] + ["Avg. Readers_Sentiment"]
 
 df_simple = raw_data.select(
     F.expr("uuid()").alias("Id"),
     *[F.col(f"`{col}`") for col in metadata_cols],
-    F.when(F.col("`Train/Dev/Test`").isNull(), F.lit("train"))
-    .otherwise(F.col("`Train/Dev/Test`"))
-    .alias("Split"),
+    F.when(F.col("`Train/Dev/Test`").isNull(), F.lit("train")).otherwise(F.col("`Train/Dev/Test`")).alias("Split"),
     *[F.col(f"`Avg. Readers_{emotion}`").alias(emotion) for emotion in emotions],
 )
 

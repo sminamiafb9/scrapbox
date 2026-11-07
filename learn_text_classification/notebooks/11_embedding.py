@@ -87,8 +87,7 @@ transfer_batch_size = embedding_config.params.transfer_batch_size
 batch_count = max(1, math.ceil(all_count / transfer_batch_size))
 
 logger.info(
-    "Starting embedding: total={}, transfer_batch_size={}, "
-    "embedding_batch_size={}, batch_count={}",
+    "Starting embedding: total={}, transfer_batch_size={}, embedding_batch_size={}, batch_count={}",
     all_count,
     transfer_batch_size,
     batch_size,
@@ -108,11 +107,7 @@ logging_utils.show_df(partitioned_df, level="DEBUG")
 # COMMAND ----------
 done_count = 0
 for batch_id in range(batch_count):
-    batch = (
-        partitioned_df.filter(F.col("_batch_id") == batch_id)
-        .drop("_batch_id")
-        .collect()
-    )
+    batch = partitioned_df.filter(F.col("_batch_id") == batch_id).drop("_batch_id").collect()
     if not batch:
         break
 

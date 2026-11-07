@@ -32,12 +32,7 @@ labels = [
 # COMMAND ----------
 null_counts = (
     df.groupBy("Split")
-    .agg(
-        *[
-            F.count(F.when(F.col(c).isNull(), 1)).alias(c)
-            for c in ["Id", "Split", *labels]
-        ]
-    )
+    .agg(*[F.count(F.when(F.col(c).isNull(), 1)).alias(c) for c in ["Id", "Split", *labels]])
     .toPandas()
 )
 logger.info(null_counts.T)
@@ -63,14 +58,10 @@ long_df = df.unpivot(
 
 # COMMAND ----------
 frequency_table = (
-    long_df.groupBy("Split", "Emotion", "Intensity")
-    .agg(F.count("*"))
-    .orderBy("Split", "Emotion", "Intensity")
+    long_df.groupBy("Split", "Emotion", "Intensity").agg(F.count("*")).orderBy("Split", "Emotion", "Intensity")
 ).toPandas()
 
-frequency_table["total"] = frequency_table.groupby(["Split", "Emotion"])[
-    "count(1)"
-].transform("sum")
+frequency_table["total"] = frequency_table.groupby(["Split", "Emotion"])["count(1)"].transform("sum")
 frequency_table["ratio"] = frequency_table["count(1)"] / frequency_table["total"]
 frequency_table = frequency_table.drop(columns=["total"])
 

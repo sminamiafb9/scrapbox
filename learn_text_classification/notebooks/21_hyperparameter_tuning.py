@@ -42,9 +42,7 @@ class HyperparameterTuningConfig:
 # COMMAND ----------
 logging_utils.setup_logging()
 config = config_utils.load_config("./config")
-hp_tuning_config = config_utils.resolve_step_config(
-    config, experiment_name, step_name, HyperparameterTuningConfig
-)
+hp_tuning_config = config_utils.resolve_step_config(config, experiment_name, step_name, HyperparameterTuningConfig)
 
 spark = DatabricksSession.builder.getOrCreate()
 

@@ -70,9 +70,7 @@ def load_config(config_dir: str | Path) -> Config:
     dbutils.widgets.text(PROFILE_PARAMETER_KEY, PROFILE_ORDER[0])
     profile = dbutils.widgets.get(PROFILE_PARAMETER_KEY)
     if profile not in PROFILE_ORDER:
-        raise ValueError(
-            f"Invalid profile: {profile!r}.\nAvailable profiles: {PROFILE_ORDER}"
-        )
+        raise ValueError(f"Invalid profile: {profile!r}.\nAvailable profiles: {PROFILE_ORDER}")
     logger.info("Using profile: {}", profile)
 
     config: DictConfig = OmegaConf.structured(Config)
