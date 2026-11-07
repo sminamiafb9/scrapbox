@@ -47,6 +47,11 @@ resources:
               experiment_name: baseline
           environment_key: *default_env
 
+        - task_key: test_mlflow 
+          notebook_task:
+            notebook_path: ../notebooks/31_logistic_regression.py
+          environment_key: *default_env
+
       environments:
         - environment_key: default
           spec:
