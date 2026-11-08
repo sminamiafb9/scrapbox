@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 import json
 import math
+from pathlib import Path
 from typing import Any, Literal
 
 TrainerStatus = Literal["SUCCEEDED", "FAILED"]
@@ -175,3 +176,10 @@ class TrainerOutputs:
     def from_json(cls, value: str) -> "TrainerOutputs":
         data: dict[str, Any] = json.loads(value)
         return cls.from_dict(data)
+
+
+@dataclass
+class TrackingConfig:
+    save_model: bool = False
+    parent_run_id: str | None = None
+    volume_base: Path | str | None = None
