@@ -1,23 +1,25 @@
 # Databricks notebook source
 from collections.abc import Callable
 from dataclasses import dataclass, field
+import math
 from pathlib import Path
 import runpy
-from typing import Any, Literal, NamedTuple
+from typing import Any, Literal, cast
 
-from databricks.connect import DatabricksSession
-from databricks.sdk.runtime import dbutils
 from loguru import logger
+from omegaconf import OmegaConf
 import optuna
 
-from learn_text_classification import config_utils, logging_utils
+from learn_text_classification import job_utils, logging_utils
+from learn_text_classification.tracking import (
+    MLflowTracker,
+    TrackingConfig,
+    TrackingRecord,
+    TrainerOutputs,
+)
 
 # COMMAND ----------
-dbutils.widgets.text("experiment_name", "baseline")
-experiment_name = dbutils.widgets.get("experiment_name")
-
-dbutils.widgets.text("step_name", "training")
-step_name = dbutils.widgets.get("step_name")
+DISABLED_PARENT_RUN = "DUMMY-PARENT-RUN"
 
 
 # COMMAND ----------
@@ -29,7 +31,7 @@ class SuggestConfig:
 
 @dataclass
 class HyperparameterTuningConfig:
-    trainer: Path
+    trainer: Path = Path("./31_logistic_regression.py")
     direction: Literal["minimize", "maximize"] = "minimize"
     n_startup_trials: int = 10
     n_trials: int = 50
@@ -40,99 +42,212 @@ class HyperparameterTuningConfig:
 
 
 # COMMAND ----------
-logging_utils.setup_logging()
-config = config_utils.load_config("./config")
-hp_tuning_config = config_utils.resolve_step_config(config, experiment_name, step_name, HyperparameterTuningConfig)
+# Runnerからの入力変数
+# runpy.run_path() の init_globals から受け取る。
+raw_parameters: dict[str, Any] = globals().get("parameters", {})
+raw_tracking: dict[str, Any] = globals().get("tracking", {})
 
-spark = DatabricksSession.builder.getOrCreate()
+# COMMAND ----------
+# Hyperparameter Tuning設定
+logging_utils.setup_logging()
+
+hp_tuning_config = OmegaConf.to_object(
+    OmegaConf.merge(
+        OmegaConf.structured(HyperparameterTuningConfig),
+        raw_parameters,
+    )
+)
+hp_tuning_config = cast(HyperparameterTuningConfig, hp_tuning_config)
+
+# Tracking設定
+tracking_config = OmegaConf.to_object(
+    OmegaConf.merge(
+        OmegaConf.structured(TrackingConfig()),
+        raw_tracking,
+    )
+)
+tracking_config = cast(TrackingConfig, tracking_config)
+parent_run_id = tracking_config.parent_run_id or DISABLED_PARENT_RUN
+volume_base = tracking_config.volume_base
 
 
 # COMMAND ----------
-def run_script(script: str | Path, **kwargs: Any) -> dict[str, Any]:
-    result = runpy.run_path(str(script), init_globals=kwargs)
-    return result
+# Tracking初期化
+tracker = MLflowTracker()
+trainer_path = Path(hp_tuning_config.trainer)
+if not trainer_path.is_file():
+    raise FileNotFoundError(f"Trainer notebook not found: {trainer_path}")
 
 
+# COMMAND ----------
+def run_trainer(
+    parameters: dict[str, Any],
+    tracking: TrackingConfig,
+) -> TrainerOutputs:
+    """Trainer Notebookを実行し、outputsを取得する。"""
+    namespace = runpy.run_path(
+        str(trainer_path),
+        init_globals={
+            "parameters": parameters,
+            "tracking": tracking,
+        },
+    )
+
+    outputs = namespace.get("outputs")
+
+    if not isinstance(outputs, TrainerOutputs):
+        raise TypeError("Trainer must return TrainerOutputs through the top-level 'outputs' variable.")
+
+    return outputs
+
+
+# COMMAND ----------
 def create_objective_fn(
-    script_path: Path,
-    fixed_params: dict[str, Any] | None = None,
-    suggest_params: dict[str, SuggestConfig] | None = None,
-    output_key: str = "outputs",
-    score_key: str = "score",
+    fixed_params: dict[str, Any],
+    suggest_params: dict[str, SuggestConfig],
 ) -> Callable[[optuna.Trial], float]:
-    fixed_params = fixed_params or {}
-    suggest_params = suggest_params or {}
+    """Optuna TrialのObjective関数を生成する。"""
 
-    def objective(
-        trial: optuna.Trial,
-    ) -> float:
-        params = {}
-        for name, sp in suggest_params.items():
-            suggest_method = getattr(trial, sp.method, None)
-            if suggest_method is None or not callable(suggest_method):
-                raise ValueError(f"Invalid suggest method: {sp.method}")
+    def objective(trial: optuna.Trial) -> float:
+        trial_params: dict[str, Any] = {}
 
-            params[name] = suggest_method(
-                name,
-                **sp.params,
+        # Optunaによるパラメータ生成
+        for name, suggest_config in suggest_params.items():
+            suggest_method = getattr(
+                trial,
+                suggest_config.method,
+                None,
             )
-        outputs = run_script(script_path, parameters=params | fixed_params)
-        return outputs[output_key][score_key]
+
+            if suggest_method is None or not callable(suggest_method):
+                raise ValueError(f"Invalid suggest method: {suggest_config.method}")
+
+            trial_params[name] = suggest_method(
+                name,
+                **suggest_config.params,
+            )
+
+        parameters = fixed_params | trial_params
+
+        # Child Run開始
+        child_run_id = tracker.start_child_run(
+            parent_run_id=parent_run_id,
+            run_name=f"trial-{trial.number}",
+            tags={
+                "optuna.trial_number": str(trial.number),
+            },
+        )
+
+        trial_tracking = TrackingConfig(
+            parent_run_id=parent_run_id,
+            save_model=False,
+            volume_base=volume_base,
+        )
+
+        # Trainer実行
+        try:
+            trainer_outputs = run_trainer(
+                parameters=parameters,
+                tracking=trial_tracking,
+            )
+
+            if trainer_outputs.status != "SUCCEEDED":
+                raise RuntimeError(f"Trainer failed in trial {trial.number}: {trainer_outputs.failure}")
+
+            score = trainer_outputs.tracking.metrics.get("score")
+
+            if score is None:
+                raise ValueError("TrainerOutputs.tracking.metrics['score'] is required.")
+
+            score = float(score)
+
+            if not math.isfinite(score):
+                raise ValueError(f"Trial score must be finite. Got: {score}")
+
+        except Exception:
+            logger.exception(f"Trial {trial.number} failed.")
+
+            tracker.end_child_run(
+                run_id=child_run_id,
+                status="FAILED",
+            )
+            raise
+
+        # Trial結果をChild Runに登録して終了
+        tracker.end_child_run(
+            run_id=child_run_id,
+            status="FINISHED",
+            record=TrackingRecord(
+                params=trainer_outputs.tracking.params,
+                metrics=trainer_outputs.tracking.metrics,
+            ),
+        )
+
+        return score
 
     return objective
 
 
+# COMMAND ----------
 def optimize(
-    direction: Literal["minimize", "maximize"],
     objective: Callable[[optuna.Trial], float],
-    n_startup_trials: int = 10,
-    n_trials: int = 50,
-    study_params: dict[str, Any] | None = None,
-    optimize_params: dict[str, Any] | None = None,
+    config: HyperparameterTuningConfig,
 ) -> tuple[float, dict[str, Any]]:
+    """Optunaによるハイパーパラメータ最適化を実行する。"""
     study = optuna.create_study(
-        direction=direction,
+        direction=config.direction,
         sampler=optuna.samplers.TPESampler(
             seed=123,
-            n_startup_trials=n_startup_trials,
+            n_startup_trials=config.n_startup_trials,
         ),
-        **(study_params or {}),
+        **config.study_params,
     )
 
-    study.optimize(objective, n_trials=n_trials, **(optimize_params or {}))
+    study.optimize(
+        objective,
+        n_trials=config.n_trials,
+        catch=(Exception,),
+        **config.optimize_params,
+    )
 
-    class OptimizeResult(NamedTuple):
-        best_value: Any
-        best_params: Any
+    # 完了したTrialが存在することを確認
+    completed_trials = [trial for trial in study.trials if trial.state == optuna.trial.TrialState.COMPLETE]
 
-    return OptimizeResult(study.best_value, study.best_params)
+    if not completed_trials:
+        raise RuntimeError("Hyperparameter tuning failed: no trial completed successfully.")
+
+    return float(study.best_value), dict(study.best_params)
 
 
 # COMMAND ----------
-label_cols = [
-    "Joy",
-    "Sadness",
-    "Anticipation",
-    "Surprise",
-    "Anger",
-    "Fear",
-    "Disgust",
-    "Trust",
-]
-for emotion in label_cols:
-    obj_fn = create_objective_fn(
-        hp_tuning_config.params.trainer,
-        hp_tuning_config.params.fixed_params | {"label_col": emotion},
-        hp_tuning_config.params.suggest_params,
-    )
+# Hyperparameter Tuning実行
+objective = create_objective_fn(
+    fixed_params=hp_tuning_config.fixed_params,
+    suggest_params=hp_tuning_config.suggest_params,
+)
 
-    best_value, best_params = optimize(
-        hp_tuning_config.params.direction,
-        obj_fn,
-        hp_tuning_config.params.n_startup_trials,
-        hp_tuning_config.params.n_trials,
-        hp_tuning_config.params.study_params,
-        hp_tuning_config.params.optimize_params,
-    )
+best_value, best_params = optimize(
+    objective=objective,
+    config=hp_tuning_config,
+)
 
-    logger.info(f"{emotion = }, {best_value = }, {best_params = }")
+logger.info(f"Hyperparameter tuning completed: best_value={best_value}, best_params={best_params}")
+
+
+# COMMAND ----------
+# Best Parametersによる最終学習
+final_parameters = hp_tuning_config.fixed_params | best_params
+
+save_model = job_utils.check_runtime_environment() == "databricks"
+final_tracking = TrackingConfig(
+    parent_run_id=parent_run_id,
+    save_model=save_model,
+    volume_base=volume_base,
+)
+
+outputs = run_trainer(
+    parameters=final_parameters,
+    tracking=final_tracking,
+)
+
+logger.info(f"Final TrainerOutputs: {outputs.to_dict()}")

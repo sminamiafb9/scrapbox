@@ -105,6 +105,7 @@ evaluator = BinaryClassificationEvaluator(
 auc = float(evaluator.evaluate(predictions))
 
 record.metrics["auc"] = auc
+record.metrics["score"] = auc
 
 # COMMAND ----------
 if config.save_model:
