@@ -1,10 +1,12 @@
 import json
+from pathlib import Path
 
 import pytest
 
 from learn_text_classification.tracking.models import (
     FailureInfo,
     ModelArtifact,
+    TrackingConfig,
     TrackingRecord,
     TrainerOutputs,
 )
@@ -194,3 +196,28 @@ class TestTrainerOutputs:
 
         with pytest.raises(ValueError):
             outputs.to_json()
+
+
+class TestTrackingConfig:
+    def test_experiment_path(self) -> None:
+        config = TrackingConfig(
+            workspace_base=Path("/Workspace/Users/user/.mlflow"),
+            experiment_name="hyperparameter_tuning",
+        )
+
+        assert config.experiment_path == ("/Workspace/Users/user/.mlflow/hyperparameter_tuning")
+
+    def test_experiment_path_with_string_values(self) -> None:
+        config = TrackingConfig(
+            workspace_base="/Workspace/Users/user/.mlflow",
+            experiment_name="hyperparameter_tuning",
+        )
+
+        assert config.experiment_path == ("/Workspace/Users/user/.mlflow/hyperparameter_tuning")
+
+    def test_experiment_path_without_workspace_base(self) -> None:
+        config = TrackingConfig(
+            experiment_name="hyperparameter_tuning",
+        )
+
+        assert config.experiment_path is None
