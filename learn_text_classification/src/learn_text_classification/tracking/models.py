@@ -182,4 +182,29 @@ class TrainerOutputs:
 class TrackingConfig:
     save_model: bool = False
     parent_run_id: str | None = None
+    workspace_base: Path | str | None = None
+    experiment_name: Path | str | None = None
     volume_base: Path | str | None = None
+
+    def __post_init__(self) -> None:
+        if self.workspace_base is not None:
+            workspace_base = Path(self.workspace_base)
+            if not workspace_base.is_absolute():
+                raise ValueError("workspace_base must be an absolute Workspace path.")
+
+        if self.experiment_name is not None:
+            experiment_name = Path(self.experiment_name)
+            if experiment_name.is_absolute() or ".." in experiment_name.parts:
+                raise ValueError("experiment_name must be a relative path.")
+
+        if self.volume_base is not None:
+            volume_base = Path(self.volume_base)
+            if not volume_base.is_absolute() or not volume_base.as_posix().startswith("/Volumes/"):
+                raise ValueError("volume_base must follow '/Volumes/<catalog>/<schema>/<volume>'.")
+
+    @property
+    def experiment_path(self) -> str | None:
+        if self.workspace_base is None or self.experiment_name is None:
+            return None
+
+        return (Path(self.workspace_base) / Path(self.experiment_name)).as_posix()
