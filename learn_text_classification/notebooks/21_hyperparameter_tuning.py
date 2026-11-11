@@ -1,6 +1,6 @@
 # Databricks notebook source
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 import math
 from pathlib import Path
 import runpy
@@ -18,9 +18,6 @@ from learn_text_classification.tracking import (
     TrainerOutputs,
 )
 
-# COMMAND ----------
-DISABLED_PARENT_RUN = "DUMMY-PARENT-RUN"
-
 
 # COMMAND ----------
 @dataclass
@@ -33,19 +30,26 @@ class SuggestConfig:
 class HyperparameterTuningConfig:
     trainer: Path = Path("./31_logistic_regression.py")
     direction: Literal["minimize", "maximize"] = "minimize"
-    n_startup_trials: int = 10
-    n_trials: int = 50
+    n_startup_trials: int = 3
+    n_trials: int = 5
     study_params: dict[str, Any] = field(default_factory=lambda: {})
     optimize_params: dict[str, Any] = field(default_factory=lambda: {})
-    fixed_params: dict[str, Any] = field(default_factory=lambda: {})
+    base_fixed_params: dict[str, Any] = field(default_factory=lambda: {})
+    best_fixed_params: dict[str, Any] = field(default_factory=lambda: {})
     suggest_params: dict[str, SuggestConfig] = field(default_factory=lambda: {})
 
 
 # COMMAND ----------
 # Runnerからの入力変数
 # runpy.run_path() の init_globals から受け取る。
-raw_parameters: dict[str, Any] = globals().get("parameters", {})
-raw_tracking: dict[str, Any] = globals().get("tracking", {})
+raw_parameters = globals().get("parameters", None)
+if raw_parameters is None:
+    raw_parameters = job_utils.load_json_from_widget("parameters")
+
+raw_tracking = globals().get("tracking", None)
+if raw_tracking is None:
+    raw_tracking = job_utils.load_json_from_widget("tracking")
+
 
 # COMMAND ----------
 # Hyperparameter Tuning設定
@@ -58,6 +62,7 @@ hp_tuning_config = OmegaConf.to_object(
     )
 )
 hp_tuning_config = cast(HyperparameterTuningConfig, hp_tuning_config)
+logger.info(hp_tuning_config)
 
 # Tracking設定
 tracking_config = OmegaConf.to_object(
@@ -67,13 +72,20 @@ tracking_config = OmegaConf.to_object(
     )
 )
 tracking_config = cast(TrackingConfig, tracking_config)
-parent_run_id = tracking_config.parent_run_id or DISABLED_PARENT_RUN
+logger.info(tracking_config)
 volume_base = tracking_config.volume_base
 
-
 # COMMAND ----------
-# Tracking初期化
-tracker = MLflowTracker()
+# 実行環境・Tracking初期化
+is_databricks = job_utils.check_runtime_environment() == "databricks"
+
+parent_run_id = tracking_config.parent_run_id
+
+if is_databricks and parent_run_id is None:
+    raise ValueError("Databricks execution requires tracking.parent_run_id. Parent Run must be managed by Runner.")
+
+tracker = MLflowTracker(tracking_config.experiment_path) if is_databricks else None
+
 trainer_path = Path(hp_tuning_config.trainer)
 if not trainer_path.is_file():
     raise FileNotFoundError(f"Trainer notebook not found: {trainer_path}")
@@ -129,19 +141,30 @@ def create_objective_fn(
 
         parameters = fixed_params | trial_params
 
-        # Child Run開始
-        child_run_id = tracker.start_child_run(
-            parent_run_id=parent_run_id,
-            run_name=f"trial-{trial.number}",
-            tags={
-                "optuna.trial_number": str(trial.number),
-            },
-        )
+        logger.info(f"Starting trial {trial.number}: parameters={parameters}")
 
-        trial_tracking = TrackingConfig(
-            parent_run_id=parent_run_id,
-            save_model=False,
-            volume_base=volume_base,
+        # Databricksの場合のみChild Runを開始
+        child_run_id = None
+
+        if is_databricks:
+            assert tracker is not None
+            assert parent_run_id is not None
+
+            child_run_id = tracker.start_child_run(
+                parent_run_id=parent_run_id,
+                run_name=f"trial-{trial.number}",
+                tags={
+                    "optuna.trial_number": str(trial.number),
+                },
+            )
+
+        trial_tracking = cast(
+            TrackingConfig,
+            replace(
+                tracking_config,  # type: ignore
+                parent_run_id=parent_run_id,
+                save_model=False,
+            ),
         )
 
         # Trainer実行
@@ -167,21 +190,31 @@ def create_objective_fn(
         except Exception:
             logger.exception(f"Trial {trial.number} failed.")
 
-            tracker.end_child_run(
-                run_id=child_run_id,
-                status="FAILED",
-            )
+            # Databricksの場合のみChild RunをFAILEDで終了
+            if child_run_id is not None:
+                assert tracker is not None
+
+                tracker.end_child_run(
+                    run_id=child_run_id,
+                    status="FAILED",
+                )
+
             raise
 
-        # Trial結果をChild Runに登録して終了
-        tracker.end_child_run(
-            run_id=child_run_id,
-            status="FINISHED",
-            record=TrackingRecord(
-                params=trainer_outputs.tracking.params,
-                metrics=trainer_outputs.tracking.metrics,
-            ),
-        )
+        # Databricksの場合のみTrial結果をChild Runに登録
+        if child_run_id is not None:
+            assert tracker is not None
+
+            tracker.end_child_run(
+                run_id=child_run_id,
+                status="FINISHED",
+                record=TrackingRecord(
+                    params=trainer_outputs.tracking.params,
+                    metrics=trainer_outputs.tracking.metrics,
+                ),
+            )
+
+        logger.info(f"Trial {trial.number} completed: score={score}, parameters={parameters}")
 
         return score
 
@@ -222,7 +255,7 @@ def optimize(
 # COMMAND ----------
 # Hyperparameter Tuning実行
 objective = create_objective_fn(
-    fixed_params=hp_tuning_config.fixed_params,
+    fixed_params=hp_tuning_config.base_fixed_params,
     suggest_params=hp_tuning_config.suggest_params,
 )
 
@@ -236,13 +269,14 @@ logger.info(f"Hyperparameter tuning completed: best_value={best_value}, best_par
 
 # COMMAND ----------
 # Best Parametersによる最終学習
-final_parameters = hp_tuning_config.fixed_params | best_params
+final_parameters = hp_tuning_config.base_fixed_params | best_params | hp_tuning_config.best_fixed_params
 
-save_model = job_utils.check_runtime_environment() == "databricks"
-final_tracking = TrackingConfig(
+save_model = is_databricks
+
+final_tracking = replace(
+    tracking_config,
     parent_run_id=parent_run_id,
-    save_model=save_model,
-    volume_base=volume_base,
+    save_model=is_databricks,
 )
 
 outputs = run_trainer(
