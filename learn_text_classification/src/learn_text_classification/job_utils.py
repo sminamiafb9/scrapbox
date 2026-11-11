@@ -1,6 +1,8 @@
+import contextlib
+import json
 from pathlib import Path, PurePosixPath
 import sys
-from typing import Literal, TypeGuard, get_args
+from typing import Any, Literal, TypeGuard, get_args
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.runtime import dbutils
@@ -89,3 +91,22 @@ def download_volume_directory(
                 remote_path,
                 str(destination),
             )
+
+
+def load_json_from_widget(
+    name: str,
+    default: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Databricks WidgetからJSONを読み込み、dictとして返す。"""
+    default_value = default if default is not None else {}
+
+    with contextlib.suppress(Exception):
+        dbutils.widgets.text(name, json.dumps(default_value))
+
+    raw_value = dbutils.widgets.get(name)
+
+    try:
+        value = json.loads(raw_value)
+        return value
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Widget '{name}' must contain valid JSON.") from exc
