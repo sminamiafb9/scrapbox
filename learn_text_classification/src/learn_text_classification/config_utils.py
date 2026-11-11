@@ -1,35 +1,29 @@
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 from databricks.sdk.runtime import dbutils
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
-P = TypeVar("P")
-type StepKey = str
+from .tracking import TrackingConfig
+
 type ProfileKey = str
 
 
 @dataclass
-class StepConfig:
+class ExperimentConfig:
     run: str
     params: dict[str, Any] = field(default_factory=lambda: {})
 
 
 @dataclass
-class ResolvedStepConfig[P]:
-    run: str
-    params: P
-
-
-@dataclass
-class ExperimentConfig:
-    steps: dict[StepKey, StepConfig]
-    shared_params: dict[str, Any] = field(default_factory=lambda: {})
-
-    def get_step(self, step_name: str) -> StepConfig | None:
-        return self.steps.get(step_name, None)
+class EmbeddingConfig:
+    cache_folder: Path
+    batch_size: int
+    transfer_batch_size: int
+    embedding_model_name: str
+    dataset: str
 
 
 @dataclass
@@ -54,10 +48,12 @@ class Config:
     ingest: IngestConfig
     prepare: PrepareConfig
     preprocessing: PreprocessingConfig
+    embedding: EmbeddingConfig
+    tracking: TrackingConfig
     experiments: dict[ProfileKey, ExperimentConfig]
 
-    def get_experiment(self, profile_name: str) -> ExperimentConfig | None:
-        return self.experiments.get(profile_name, None)
+    def get_experiment(self, experiment_name: str) -> ExperimentConfig | None:
+        return self.experiments.get(experiment_name)
 
 
 PROFILE_ORDER = ("local", "sandbox")
@@ -69,12 +65,13 @@ def load_config(config_dir: str | Path) -> Config:
 
     dbutils.widgets.text(PROFILE_PARAMETER_KEY, PROFILE_ORDER[0])
     profile = dbutils.widgets.get(PROFILE_PARAMETER_KEY)
+
     if profile not in PROFILE_ORDER:
         raise ValueError(f"Invalid profile: {profile!r}.\nAvailable profiles: {PROFILE_ORDER}")
+
     logger.info("Using profile: {}", profile)
 
     config: DictConfig = OmegaConf.structured(Config)
-
     profile_index = PROFILE_ORDER.index(profile)
 
     for profile_name in PROFILE_ORDER[: profile_index + 1]:
@@ -97,30 +94,5 @@ def load_config(config_dir: str | Path) -> Config:
 
     result = OmegaConf.to_object(config)
     logger.info("\n{}\n", OmegaConf.to_yaml(result))
+
     return cast(Config, result)
-
-
-def resolve_step_config[P](
-    config: Config,
-    experiment_name: str,
-    step_name: str,
-    params_cls: type[P],
-) -> ResolvedStepConfig[P]:
-    experiment = config.get_experiment(experiment_name)
-    if experiment is None:
-        raise ValueError(f"Profile {experiment_name!r} not found")
-
-    step = experiment.get_step(step_name)
-    if step is None:
-        raise ValueError(f"Step {step_name!r} not found in profile {experiment_name!r}")
-
-    params: DictConfig = OmegaConf.merge(
-        OmegaConf.structured(params_cls),
-        step.params,
-    )  # type: ignore
-
-    resolved = OmegaConf.to_object(params)
-    return ResolvedStepConfig(
-        run=step.run,
-        params=resolved,
-    )  # type: ignore
