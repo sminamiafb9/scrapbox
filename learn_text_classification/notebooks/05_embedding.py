@@ -5,7 +5,6 @@ from pathlib import Path
 import uuid
 
 from databricks.connect import DatabricksSession
-from databricks.sdk.runtime import dbutils
 from loguru import logger
 from pyspark.ml.functions import array_to_vector
 from pyspark.sql import functions as F
@@ -19,13 +18,6 @@ from pyspark.sql.types import (
 from sentence_transformers import SentenceTransformer
 
 from learn_text_classification import config_utils, job_utils, logging_utils
-
-# COMMAND ----------
-dbutils.widgets.text("experiment_name", "baseline")
-experiment_name = dbutils.widgets.get("experiment_name")
-
-dbutils.widgets.text("step_name", "embedding")
-step_name = dbutils.widgets.get("step_name")
 
 
 # COMMAND ----------
@@ -42,29 +34,24 @@ class EmbeddingConfig:
 # COMMAND ----------
 logging_utils.setup_logging()
 config = config_utils.load_config("./config")
-embedding_config = config_utils.resolve_step_config(
-    config,
-    experiment_name,
-    step_name,
-    EmbeddingConfig,
-)
+embedding_config = config.embedding
 
 spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
-job_utils.exit_if_table_exists(embedding_config.params.dataset)
+job_utils.exit_if_table_exists(embedding_config.dataset)
 
 # COMMAND ----------
 df = spark.read.table(config.preprocessing.dataset)
 logging_utils.show_df(df, level="DEBUG")
 
 # COMMAND ----------
-embedding_config.params.cache_folder.mkdir(parents=True, exist_ok=True)
+embedding_config.cache_folder.mkdir(parents=True, exist_ok=True)
 
 # COMMAND ----------
 embedding_model = SentenceTransformer(
-    embedding_config.params.embedding_model_name,
-    cache_folder=str(embedding_config.params.cache_folder),
+    embedding_config.embedding_model_name,
+    cache_folder=str(embedding_config.cache_folder),
 )
 
 schema = StructType(
@@ -75,15 +62,15 @@ schema = StructType(
 )
 
 temporary_prefix = uuid.uuid4().hex
-temporary_table = f"{embedding_config.params.dataset}_{temporary_prefix}"
+temporary_table = f"{embedding_config.dataset}_{temporary_prefix}"
 
 empty_df = spark.createDataFrame([], schema)
 empty_df.write.format("delta").mode("overwrite").saveAsTable(temporary_table)
 
 # COMMAND ----------
 all_count = df.count()
-batch_size = embedding_config.params.batch_size
-transfer_batch_size = embedding_config.params.transfer_batch_size
+batch_size = embedding_config.batch_size
+transfer_batch_size = embedding_config.transfer_batch_size
 batch_count = max(1, math.ceil(all_count / transfer_batch_size))
 
 logger.info(
@@ -167,10 +154,10 @@ datasets = (
     datasets.write.format("delta")
     .mode("overwrite")
     .option("overwriteSchema", "true")
-    .saveAsTable(embedding_config.params.dataset)
+    .saveAsTable(embedding_config.dataset)
 )
 
-loaded = spark.read.table(embedding_config.params.dataset)
+loaded = spark.read.table(embedding_config.dataset)
 loaded.printSchema()
 logging_utils.show_df(loaded, level="INFO")
 
