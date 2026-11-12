@@ -1,3 +1,4 @@
+
 resources:
   jobs:
     learn_text_classification:
@@ -31,25 +32,28 @@ resources:
 
         - task_key: data_preprocessing
           depends_on:
-            - task_key: data_prepare
+            - task_key: data_profiling
           notebook_task:
             notebook_path: ../notebooks/04_data_preprocessing.py
             base_parameters: *default_params
           environment_key: *default_env
 
-        - task_key: model_training
+        - task_key: embedding
           depends_on:
             - task_key: data_preprocessing
           notebook_task:
-            notebook_path: ../notebooks/05_model_training.py
-            base_parameters:
-              <<: *default_params
-              experiment_name: baseline
+            notebook_path: ../notebooks/05_embedding.py
+            base_parameters: *default_params
           environment_key: *default_env
 
-        - task_key: test_mlflow 
+        - task_key: model_training
+          depends_on:
+            - task_key: embedding
           notebook_task:
-            notebook_path: ../notebooks/31_logistic_regression.py
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: baseline
           environment_key: *default_env
 
       environments:
