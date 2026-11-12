@@ -183,7 +183,7 @@ class TrackingConfig:
     save_model: bool = False
     parent_run_id: str | None = None
     workspace_base: Path | str | None = None
-    experiment_name: Path | str | None = None
+    project_name: Path | str | None = None
     volume_base: Path | str | None = None
 
     def __post_init__(self) -> None:
@@ -192,8 +192,8 @@ class TrackingConfig:
             if not workspace_base.is_absolute():
                 raise ValueError("workspace_base must be an absolute Workspace path.")
 
-        if self.experiment_name is not None:
-            experiment_name = Path(self.experiment_name)
+        if self.project_name is not None:
+            experiment_name = Path(self.project_name)
             if experiment_name.is_absolute() or ".." in experiment_name.parts:
                 raise ValueError("experiment_name must be a relative path.")
 
@@ -204,7 +204,7 @@ class TrackingConfig:
 
     @property
     def experiment_path(self) -> str | None:
-        if self.workspace_base is None or self.experiment_name is None:
+        if self.workspace_base is None or self.project_name is None:
             return None
 
-        return (Path(self.workspace_base) / Path(self.experiment_name)).as_posix()
+        return (Path(self.workspace_base) / Path(self.project_name)).as_posix()

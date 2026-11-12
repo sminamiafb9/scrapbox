@@ -3,7 +3,7 @@ ingest:
 
 tracking:
   workspace_base: /Workspace/Users/shotaro.minami8e40a5@gmail.com/.mlflow
-  experiment_name: baseline
+  project_name: learn_text_classification
   volume_base: /Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/.mlflow
   save_model: true
 
