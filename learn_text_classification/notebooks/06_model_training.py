@@ -43,7 +43,7 @@ if not run_name:
 parent_run_id = tracker.start_parent_run(
     run_name=run_name,
     tags={
-        "experiment_name": experiment_key,
+        "experiment_key": experiment_key,
     },
 )
 
