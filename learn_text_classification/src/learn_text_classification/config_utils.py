@@ -49,8 +49,9 @@ class Config:
     prepare: PrepareConfig
     preprocessing: PreprocessingConfig
     embedding: EmbeddingConfig
-    tracking: TrackingConfig
     experiments: dict[ProfileKey, ExperimentConfig]
+
+    tracking: TrackingConfig = field(default_factory=lambda: TrackingConfig())
 
     def get_experiment(self, experiment_name: str) -> ExperimentConfig | None:
         return self.experiments.get(experiment_name)
