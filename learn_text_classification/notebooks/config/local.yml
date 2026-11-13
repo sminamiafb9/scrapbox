@@ -17,21 +17,21 @@ embedding:
   dataset: sandbox.shotaro_minami8e40a5.wrime_embeddings
 
 experiments:
-  baseline:
+  baseline: &baseline
     run: 21_hyperparameter_tuning.py
-    params:
+    params: &baseline_params
       trainer: 31_logistic_regression.py
       direction: maximize
-      n_startup_trials: 3
-      n_trials: 5
-      base_fixed_params:
+      n_startup_trials: 10
+      n_trials: 50
+      base_fixed_params: &baseline_fixed_params
         max_itr: 30
       suggest_params:
         regularization:
           method: suggest_float
           params:
             low: 1.0e-5
-            high: 10.0
+            high: 1.0
             log: true
         elastic_net:
           method: suggest_float
@@ -39,7 +39,66 @@ experiments:
             low: 0.0
             high: 1.0
 
-  logistic_regression:
-    run: 31_logistic_regression.py
+  LR_Joy:
+    <<: *baseline
     params:
-      max_itr: 30
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Joy
+
+  LR_Sadness:
+    <<: *baseline
+    params:
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Sadness
+
+  LR_Anticipation:
+    <<: *baseline
+    params:
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Anticipation
+
+  LR_Surprise:
+    <<: *baseline
+    params:
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Surprise
+
+  LR_Anger:
+    <<: *baseline
+    params:
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Anger
+
+  LR_Fear:
+    <<: *baseline
+    params:
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Fear
+
+  LR_Disgust:
+    <<: *baseline
+    params:
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Disgust
+
+  LR_Trust:
+    <<: *baseline
+    params:
+      <<: *baseline_params
+      base_fixed_params:
+        <<: *baseline_fixed_params
+        label_col: Trust

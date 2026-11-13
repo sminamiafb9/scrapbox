@@ -46,14 +46,84 @@ resources:
             base_parameters: *default_params
           environment_key: *default_env
 
-        - task_key: model_training
+        - task_key: lr_joy_training
           depends_on:
             - task_key: embedding
           notebook_task:
             notebook_path: ../notebooks/06_model_training.py
             base_parameters:
               <<: *default_params
-              experiment_key: baseline
+              experiment_key: LR_Joy
+          environment_key: *default_env
+
+        - task_key: lr_sadness_training
+          depends_on:
+            - task_key: embedding
+          notebook_task:
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: LR_Sadness
+          environment_key: *default_env
+
+        - task_key: lr_anticipation_training
+          depends_on:
+            - task_key: embedding
+          notebook_task:
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: LR_Anticipation
+          environment_key: *default_env
+
+        - task_key: lr_surprise_training
+          depends_on:
+            - task_key: embedding
+          notebook_task:
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: LR_Surprise
+          environment_key: *default_env
+
+        - task_key: lr_anger_training
+          depends_on:
+            - task_key: embedding
+          notebook_task:
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: LR_Anger
+          environment_key: *default_env
+
+        - task_key: lr_fear_training
+          depends_on:
+            - task_key: embedding
+          notebook_task:
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: LR_Fear
+          environment_key: *default_env
+
+        - task_key: lr_disgust_training
+          depends_on:
+            - task_key: embedding
+          notebook_task:
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: LR_Disgust
+          environment_key: *default_env
+
+        - task_key: lr_trust_training
+          depends_on:
+            - task_key: embedding
+          notebook_task:
+            notebook_path: ../notebooks/06_model_training.py
+            base_parameters:
+              <<: *default_params
+              experiment_key: LR_Trust
           environment_key: *default_env
 
       environments:
