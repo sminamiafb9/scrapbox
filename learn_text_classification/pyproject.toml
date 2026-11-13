@@ -6,12 +6,11 @@ readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
     "databricks-sdk>=0.151.0",
-    "jinja2>=3.1.6",
     "loguru>=0.7.3",
+    "matplotlib>=3.10.9",
     "mlflow[databricks]>=3.8.1",
     "omegaconf>=2.4.0",
     "optuna>=5.0.0",
-    "pyyaml>=6.0.3",
     "seaborn>=0.13.2",
     "sentence-transformers>=5.7.0",
 ]
@@ -32,6 +31,7 @@ dev = [
     "pytest-randomly>=4.1.0",
     "ruff>=0.16.1",
     "databricks-connect~=18.2.0",
+    "deptry>=0.25.1",
 ]
 
 
