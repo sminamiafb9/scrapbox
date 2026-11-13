@@ -1,4 +1,6 @@
 # Databricks notebook source
+from functools import reduce
+
 from databricks.connect import DatabricksSession
 from loguru import logger
 import matplotlib.pyplot as plt
@@ -100,4 +102,27 @@ g.set_axis_labels("Split", "Ratio")
 g.figure.subplots_adjust(top=0.9, hspace=0.4)
 g.figure.suptitle("Emotion Intensity Ratio Comparison Across Splits", fontsize=16)
 
+plt.show()
+
+# COMMAND ----------
+label_count_df = (
+    df.withColumn(
+        "positive_label_count", reduce(lambda a, b: a + b, [F.when(F.col(c) > 0, 1).otherwise(0) for c in labels])
+    )
+    .groupBy("Split", "positive_label_count")
+    .count()
+    .orderBy("Split", "positive_label_count")
+).toPandas()
+
+# COMMAND ----------
+label_count_df["ratio"] = label_count_df["count"] / label_count_df.groupby("Split")["count"].transform("sum") * 100
+
+plt.figure(figsize=(10, 5))
+
+sns.barplot(data=label_count_df, x="positive_label_count", y="ratio", hue="Split")
+
+plt.xlabel("Positive Label Count")
+plt.ylabel("Percentage (%)")
+plt.title("Positive Label Count Distribution by Split")
+plt.tight_layout()
 plt.show()
