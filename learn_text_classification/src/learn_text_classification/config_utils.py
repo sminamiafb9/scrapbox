@@ -53,8 +53,8 @@ class Config:
 
     tracking: TrackingConfig = field(default_factory=lambda: TrackingConfig())
 
-    def get_experiment(self, experiment_name: str) -> ExperimentConfig | None:
-        return self.experiments.get(experiment_name)
+    def get_experiment(self, experiment_key: str) -> ExperimentConfig | None:
+        return self.experiments.get(experiment_key)
 
 
 PROFILE_ORDER = ("local", "sandbox")

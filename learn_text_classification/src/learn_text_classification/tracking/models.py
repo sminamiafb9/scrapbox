@@ -193,9 +193,9 @@ class TrackingConfig:
                 raise ValueError("workspace_base must be an absolute Workspace path.")
 
         if self.project_name is not None:
-            experiment_name = Path(self.project_name)
-            if experiment_name.is_absolute() or ".." in experiment_name.parts:
-                raise ValueError("experiment_name must be a relative path.")
+            project_name = Path(self.project_name)
+            if project_name.is_absolute() or ".." in project_name.parts:
+                raise ValueError("project_name must be a relative path.")
 
         if self.volume_base is not None:
             volume_base = Path(self.volume_base)
