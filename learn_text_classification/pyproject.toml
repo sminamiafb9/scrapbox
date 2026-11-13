@@ -32,6 +32,7 @@ dev = [
     "ruff>=0.16.1",
     "databricks-connect~=18.2.0",
     "deptry>=0.25.1",
+    "pip>=26.3",
 ]
 
 
