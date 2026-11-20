@@ -60,6 +60,7 @@ def exit_if_file_exists(file_path: str | Path, return_value: str = "") -> None:
             sys.exit(0)
 
 
+# not used
 def download_volume_directory(
     workspace_client: WorkspaceClient,
     volume_path: str,
@@ -93,6 +94,7 @@ def download_volume_directory(
             )
 
 
+# not used
 def load_json_from_widget(
     name: str,
     default: dict[str, Any] | None = None,
