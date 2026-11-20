@@ -1,60 +1,21 @@
-
 resources:
   jobs:
-    learn_text_classification:
-      name: learn_text_classification
+    logistic_regression:
+      name: logistic_regression
 
       tasks:
-        - task_key: data_ingest
-          notebook_task:
-            notebook_path: ../notebooks/01_data_ingest.py
-            base_parameters: &default_params
-              profile: sandbox
-              log_level: INFO
-              runtime_environment: databricks
-          environment_key: &default_env default
-
-        - task_key: data_prepare
-          depends_on:
-            - task_key: data_ingest
-          notebook_task:
-            notebook_path: ../notebooks/02_data_prepare.py
-            base_parameters: *default_params
-          environment_key: *default_env
-
-        - task_key: data_profiling
-          depends_on:
-            - task_key: data_prepare
-          notebook_task:
-            notebook_path: ../notebooks/03_data_profiling.py
-            base_parameters: *default_params
-          environment_key: *default_env
-
-        - task_key: data_preprocessing
-          depends_on:
-            - task_key: data_profiling
-          notebook_task:
-            notebook_path: ../notebooks/04_data_preprocessing.py
-            base_parameters: *default_params
-          environment_key: *default_env
-
-        - task_key: embedding
-          depends_on:
-            - task_key: data_preprocessing
-          notebook_task:
-            notebook_path: ../notebooks/05_embedding.py
-            base_parameters: *default_params
-          environment_key: *default_env
-
         - task_key: lr_joy_training
           depends_on:
             - task_key: embedding
           notebook_task:
             notebook_path: ../notebooks/06_model_training.py
-            base_parameters:
-              <<: *default_params
+            base_parameters: &default_params
+              profile: sandbox
+              config: logistic_regression
+              log_level: INFO
+              runtime_environment: databricks
               experiment_key: LR_Joy
-          environment_key: *default_env
+          environment_key: &default_env default
 
         - task_key: lr_sadness_training
           depends_on:
