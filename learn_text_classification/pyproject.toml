@@ -394,7 +394,6 @@ databricks bundle run -t $target $job
 
     [[tool.poe.tasks.bundle_run.args]]
     name = "job"
-    default = "learn_text_classification"
     options = ["-n", "--job-name"]
 
 [tool.poe.tasks.bundle_test]
