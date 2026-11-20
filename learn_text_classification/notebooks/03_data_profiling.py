@@ -88,10 +88,10 @@ g = sns.FacetGrid(
 )
 
 g.map_dataframe(sns.barplot, x="Split", y="ratio", hue="Intensity", palette="Set2")
-handles, labels = g.axes[0].get_legend_handles_labels()
+handles, legend_labels = g.axes[0].get_legend_handles_labels()
 g.figure.legend(
     handles,
-    labels,
+    legend_labels,
     title="Intensity",
     loc="lower center",
     bbox_to_anchor=(0.5, -0.05),
