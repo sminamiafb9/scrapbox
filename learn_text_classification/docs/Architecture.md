@@ -4,7 +4,7 @@
 
 本システムは、データの取得から前処理、Embedding生成、モデル学習までをDatabricks Jobで実行する機械学習ワークフローである。
 
-モデル学習部分は、Runner・Tuner・Trainerの3つの役割に分離している。
+データ処理とモデル学習は、それぞれ独立したDatabricks Jobとして管理する。モデル学習部分は、Runner・Tuner・Trainerの3つの役割に分離している。
 
 - **Runner**: 実験設定の読み込み、Parent Runの管理、学習処理の実行制御
 - **Tuner**: Optunaによるハイパーパラメータ探索、Trialの管理、最適パラメータによる最終学習
@@ -12,30 +12,34 @@
 
 実行制御には `runpy.run_path()` を使用し、Notebook間では `parameters` と `tracking` を入力、`outputs` を出力とする共通インターフェースを採用している。
 
+設定管理は環境設定と実験設定を分離し、Config Loaderによってマージ・検証を行う構成とする。
+
 ## 2. Overall Workflow
 
 ### 2.1 Job execution flow
 
-Databricks Jobでは、以下の順序でNotebookを実行する。
+Databricks Jobはデータ処理とモデル学習に分離され、それぞれ独立して実行できる。
+
+#### Data Processing Job
+
+データ処理Jobでは、以下の順序でNotebookを実行する。
 
 ```mermaid
 flowchart TD
-    A["Databricks Job Start"]
+    A["Data Processing Job Start"]
     B["01_data_ingest.py<br/>データ取得"]
     C["02_data_prepare.py<br/>データ整形・格納"]
     D["03_data_profiling.py<br/>データ分析"]
     E["04_data_preprocessing.py<br/>データ前処理"]
     F["05_embedding.py<br/>Embedding生成"]
-    G["06_model_training.py<br/>Runner"]
-    H["Job Complete"]
+    G["Job Complete"]
 
-    A --> B --> C --> D --> E --> F --> G --> H
+    A --> B --> C --> D --> E --> F --> G
 
     B -.-> S[("Volume / Delta Tables")]
     C -.-> S
     E -.-> S
     F -.-> S
-    S -. "学習データを参照" .-> G
 ```
 
 | Notebook | 役割 |
@@ -45,9 +49,49 @@ flowchart TD
 | `03_data_profiling.py` | データの分析・確認 |
 | `04_data_preprocessing.py` | モデル学習用データの前処理 |
 | `05_embedding.py` | Embeddingの生成 |
-| `06_model_training.py` | 実験設定に基づくモデル学習の実行制御 |
 
 各処理で生成されたデータは、必要に応じてUnity Catalog VolumeやDelta Tableなどの共有ストレージに保存する。後続処理は保存されたデータを参照する。
+
+#### Logistic Regression Job
+
+Logistic Regression Jobでは、各感情に対するモデル学習を独立したTaskとして実行する。
+
+```mermaid
+flowchart TD
+    A["Logistic Regression Job Start"]
+    A --> B["LR Joy"]
+    A --> C["LR Sadness"]
+    A --> D["LR Anticipation"]
+    A --> E["LR Surprise"]
+    A --> F["LR Anger"]
+    A --> G["LR Fear"]
+    A --> H["LR Disgust"]
+    A --> I["LR Trust"]
+
+    B --> J["Job Complete"]
+    C --> J
+    D --> J
+    E --> J
+    F --> J
+    G --> J
+    H --> J
+    I --> J
+```
+
+各Taskは `06_model_training.py` を実行し、`experiment_key` によって対象となる実験設定を選択する。
+
+| Task | `experiment_key` |
+|---|---|
+| `lr_joy_training` | `LR_Joy` |
+| `lr_sadness_training` | `LR_Sadness` |
+| `lr_anticipation_training` | `LR_Anticipation` |
+| `lr_surprise_training` | `LR_Surprise` |
+| `lr_anger_training` | `LR_Anger` |
+| `lr_fear_training` | `LR_Fear` |
+| `lr_disgust_training` | `LR_Disgust` |
+| `lr_trust_training` | `LR_Trust` |
+
+Data Processing JobとLogistic Regression Jobは独立して管理される。Job間の実行依存関係は設定せず、データ処理と学習をそれぞれ個別に実行できる構成とする。
 
 ## 3. Model Training Architecture
 
@@ -323,47 +367,96 @@ Tuner経由の場合、Trialではモデルを保存せず、最終Trainerの実
 notebooks/
 └── config/
     ├── local.yml
-    └── sandbox.yml
+    ├── sandbox.yml
+    └── experiments/
+        └── logistic_regression.yml
 ```
 
-- `local.yml`: 共通設定およびLocal環境の基本設定
-- `sandbox.yml`: Databricks環境固有の設定
+設定は環境設定と実験設定に分離する。
 
-OmegaConfで両方の設定をマージする。`sandbox.yml` の値が `local.yml` の値を上書きする。
+| File | Role |
+|---|---|
+| `local.yml` | 共通設定およびLocal環境の基本設定 |
+| `sandbox.yml` | Databricks環境固有の設定 |
+| `experiments/*.yml` | モデル・探索方式などの実験設定 |
 
-```text
-local.yml
-    |
-    v
-sandbox.yml
-    |
-    v
-Merged Config
+### 7.2 Configuration loading
+
+Config LoaderはWidgetから `profile` と `config` を取得し、設定ファイルを読み込む。
+
+| Widget | Role |
+|---|---|
+| `profile` | 読み込む環境設定を選択する |
+| `config` | 読み込む実験設定ファイルを選択する |
+
+`profile` は `local` または `sandbox` を指定する。
+
+環境設定は以下の順序でマージする。
+
+```mermaid
+flowchart TD
+    A["local.yml"]
+    B["sandbox.yml<br/>sandboxの場合"]
+    C["experiments/<config>.yml"]
+    D["Merged Config"]
+    E["Required Values Validation"]
+    F["Config Object"]
+
+    A --> D
+    B --> D
+    C --> D
+    D --> E --> F
 ```
 
-### 7.2 Experiment configuration
+- `local` の場合は `local.yml` を読み込む。
+- `sandbox` の場合は `local.yml` と `sandbox.yml` を順にマージする。
+- `config` が指定されている場合は、`experiments/` 配下の指定ファイルを追加でマージする。
+- 同一キーが存在する場合は後から読み込んだ設定が優先される。
+- マージ後に必須値の検証を行う。
 
-実行するExperimentは `experiment_key` で選択する。
+実験設定ファイルは `.yml` または `.yaml` を使用する。
+
+### 7.3 Experiment configuration
+
+実験設定は `experiments/` 配下にモデルや実験方式ごとに配置する。
+
+Logistic Regressionの実験設定は `logistic_regression.yml` に集約する。
 
 ```yaml
 experiments:
-  logistic_regression:
-    run: 31_logistic_regression.py
-    params:
-      max_itr: 30
-
   baseline:
     run: 21_hyperparameter_tuning.py
     params:
       trainer: 31_logistic_regression.py
       direction: maximize
-      n_startup_trials: 3
-      n_trials: 5
+      n_startup_trials: 10
+      n_trials: 50
+      base_fixed_params:
+        max_itr: 30
+      suggest_params:
+        regularization:
+          method: suggest_float
+          params:
+            low: 1.0e-5
+            high: 1.0
+            log: true
+        elastic_net:
+          method: suggest_float
+          params:
+            low: 0.0
+            high: 1.0
+
+  LR_Joy:
+    # baselineを継承しlabel_colを変更
 ```
+
+各実験は共通のbaseline設定を継承し、必要なパラメータを上書きすることで定義する。
+
+実験設定ファイルには複数のExperimentConfigを定義できる。`experiment_key` によって実行対象を選択する。
 
 `experiment_key` は実験設定を識別するキーであり、MLflow Runの名前とは役割が異なる。
 
-### 7.3 TrackingConfig
+### 7.4 TrackingConfig
 
 Trackingに関する設定は `TrackingConfig` で管理する。
 
@@ -385,76 +478,113 @@ experiment_path = (
 
 複数の実験Runを同一ProjectのMLflow Experimentにまとめて管理する。
 
+### 7.5 Config validation
+
+Config LoaderではOmegaConfのStructured Configを使用し、設定値の型および必須値を検証する。
+
+- Configクラスによって設定構造を定義する。
+- `MISSING` を使用して必須値を明示する。
+- `default_factory` によって部分設定でもマージ可能な構造とする。
+- マージ後に必須値が不足している場合は例外を発生させる。
+
+環境設定ファイルに `experiments` が定義されている場合は、別ファイルへの分離を促すDeprecated Warningを出力する。
+
 ## 8. Main Components
 
 ```text
-src/
-└── learn_text_classification/
-    ├── runners/
-    │   └── model_training.py
-    ├── tracking/
-    │   ├── models.py
-    │   └── tracking_utils.py
-    ├── config_utils.py
-    ├── job_utils.py
-    └── logging_utils.py
-
-notebooks/
-├── 01_data_ingest.py
-├── 02_data_prepare.py
-├── 03_data_profiling.py
-├── 04_data_preprocessing.py
-├── 05_embedding.py
-├── 06_model_training.py
-├── 21_hyperparameter_tuning.py
-├── 31_logistic_regression.py
-└── config/
-    ├── local.yml
-    └── sandbox.yml
-
-resources/
-└── job.yml
-
-tests/
-├── test_tracking_models.py
-└── test_tracking_utils.py
-
-pyproject.toml
+learn_text_classification/
+├── src/
+│   └── learn_text_classification/
+│       ├── runners/
+│       │   └── model_training.py
+│       ├── tracking/
+│       │   ├── models.py
+│       │   └── tracking_utils.py
+│       ├── config_utils.py
+│       ├── job_utils.py
+│       └── logging_utils.py
+│
+├── notebooks/
+│   ├── 01_data_ingest.py
+│   ├── 02_data_prepare.py
+│   ├── 03_data_profiling.py
+│   ├── 04_data_preprocessing.py
+│   ├── 05_embedding.py
+│   ├── 06_model_training.py
+│   ├── 21_hyperparameter_tuning.py
+│   ├── 31_logistic_regression.py
+│   └── config/
+│       ├── local.yml
+│       ├── sandbox.yml
+│       └── experiments/
+│           └── logistic_regression.yml
+│
+├── resources/
+│   ├── data.yml
+│   └── logistic_regression.yml
+│
+├── tests/
+│   ├── test_config_utils.py
+│   ├── test_tracking_models.py
+│   └── test_tracking_utils.py
+│
+└── pyproject.toml
 ```
+
+### 8.1 Configuration management
+
+`config_utils.py` は以下を担当する。
+
+- `profile` Widgetの取得
+- `config` Widgetの取得
+- 環境設定ファイルの読み込み
+- 実験設定ファイルの読み込み
+- OmegaConfによる設定マージ
+- 必須値の検証
+- Configオブジェクトの生成
+
+### 8.2 Job management
+
+Databricks Asset BundlesのJob設定は以下のファイルで管理する。
+
+| File | Job | Responsibility |
+|---|---|---|
+| `resources/data.yml` | `data_processing` | データ処理・Embedding生成 |
+| `resources/logistic_regression.yml` | `logistic_regression` | Logistic Regression学習 |
+
+各Jobは独立してデプロイおよび実行する。
 
 ## 9. Verification Results
 
-現在の構成に対して、以下の検証を実施済み。
+今回の設定管理およびJob構成の変更に対して、以下の検証を実施済み。
 
-### 9.1 Local validation
+### 9.1 Configuration validation
 
 | Check | Result |
 |---|---|
-| Ruff lint | PASS |
-| Ruff format | PASS |
-| Pyright | PASS |
-| Pytest | PASS |
-| Test count | 53 passed |
-| `uv build` | Completed |
-| Dependency configuration | Updated and validated |
+| Config Loader tests | PASS |
+| Environment configuration loading | Verified |
+| Experiment configuration loading | Verified |
+| Config merge | Verified |
+| Missing required values validation | Verified |
+| Experiment configuration override | Verified |
 
 ### 9.2 Databricks validation
 
 | Check | Result |
 |---|---|
 | Databricks Bundle validation | PASS |
-| Job configuration | Validated |
-| Databricks Job execution | Successful |
-| Notebook execution flow | Verified |
-| MLflow Parent / Child Run | Verified |
-| Spark ML model Volume save | Verified |
-| Parent Run model path registration | Verified |
+| Databricks Bundle deployment | PASS |
+| Data Processing Job execution | Successful |
+| Logistic Regression Job execution | Successful |
+| MLflow Tracking | Verified |
 
 ### 9.3 Current operational behavior
 
 - LocalではLoguruによるConsole Trackingを使用する。
 - DatabricksではMLflow Trackingを使用する。
-- Databricks Jobはデータ処理からモデル学習まで順番に実行する。
+- データ処理Jobはデータ取得からEmbedding生成までを実行する。
+- Logistic Regression Jobは各感情の学習Taskを実行する。
 - RunnerはParent Runを管理する。
 - TunerはTrial単位のChild Runを管理する。
 - Trainerは学習結果を `TrainerOutputs` として返す。
@@ -469,10 +599,13 @@ pyproject.toml
 |---|---|
 | Databricks Job | Notebookの実行順序・依存関係の管理 |
 | Data Processing | データ取得、整形、分析、前処理、Embedding生成 |
+| Configuration | 環境設定・実験設定の管理、マージ、検証 |
 | Runner | Experiment選択、学習実行制御、Parent Run管理 |
 | Tuner | ハイパーパラメータ探索、Trial管理、最終学習 |
 | Trainer | モデル学習、評価、保存、結果生成 |
 | Tracking | Metrics、Parameters、Artifact情報の記録 |
 | Storage | データおよびモデルArtifactの保存 |
 
-データ処理、実行制御、ハイパーパラメータ探索、モデル学習、Trackingの責務を分離し、それぞれの処理を共通の入出力契約で接続する構成としている。
+データ処理とモデル学習を独立したJobとして管理し、設定管理、実行制御、ハイパーパラメータ探索、モデル学習、Trackingの責務を分離する。
+
+各処理は共通の入出力契約で接続され、環境設定と実験設定を分離することで、実験の追加および実行環境の変更に対応できる構成とする。
