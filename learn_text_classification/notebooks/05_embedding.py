@@ -1,7 +1,5 @@
 # Databricks notebook source
-from dataclasses import dataclass
 import math
-from pathlib import Path
 import uuid
 
 from databricks.connect import DatabricksSession
@@ -18,18 +16,6 @@ from pyspark.sql.types import (
 from sentence_transformers import SentenceTransformer
 
 from learn_text_classification import config_utils, job_utils, logging_utils
-
-
-# COMMAND ----------
-@dataclass
-class EmbeddingConfig:
-    cache_folder: Path
-    batch_size: int
-    transfer_batch_size: int
-
-    embedding_model_name: str
-    dataset: str
-
 
 # COMMAND ----------
 logging_utils.setup_logging()
