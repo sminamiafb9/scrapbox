@@ -7,10 +7,9 @@ import runpy
 from typing import Any, Literal, cast
 
 from loguru import logger
-from omegaconf import OmegaConf
 import optuna
 
-from learn_text_classification import job_utils, logging_utils
+from learn_text_classification import config_utils, job_utils, logging_utils
 from learn_text_classification.tracking import (
     MLflowTracker,
     TrackingConfig,
@@ -42,36 +41,19 @@ class HyperparameterTuningConfig:
 # COMMAND ----------
 # Runnerからの入力変数
 # runpy.run_path() の init_globals から受け取る。
-raw_parameters = globals().get("parameters", None)
-if raw_parameters is None:
-    raw_parameters = job_utils.load_json_from_widget("parameters")
-
-raw_tracking = globals().get("tracking", None)
-if raw_tracking is None:
-    raw_tracking = job_utils.load_json_from_widget("tracking")
+raw_parameters = globals().get("parameters", {})
+raw_tracking = globals().get("tracking", {})
 
 
 # COMMAND ----------
 # Hyperparameter Tuning設定
 logging_utils.setup_logging()
 
-hp_tuning_config = OmegaConf.to_object(
-    OmegaConf.merge(
-        OmegaConf.structured(HyperparameterTuningConfig),
-        raw_parameters,
-    )
-)
-hp_tuning_config = cast(HyperparameterTuningConfig, hp_tuning_config)
+hp_tuning_config = config_utils.validate(raw_parameters, HyperparameterTuningConfig)
 logger.info(hp_tuning_config)
 
 # Tracking設定
-tracking_config = OmegaConf.to_object(
-    OmegaConf.merge(
-        OmegaConf.structured(TrackingConfig()),
-        raw_tracking,
-    )
-)
-tracking_config = cast(TrackingConfig, tracking_config)
+tracking_config = config_utils.validate(raw_tracking, TrackingConfig)
 logger.info(tracking_config)
 volume_base = tracking_config.volume_base
 

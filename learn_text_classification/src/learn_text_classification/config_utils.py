@@ -73,7 +73,7 @@ def load_config(config_dir: str | Path) -> DictConfig:
     return config
 
 
-def validate(config: DictConfig, cls: type) -> Any:
+def validate(config: DictConfig | dict[str, Any], cls: type) -> Any:
     validated = OmegaConf.merge(OmegaConf.structured(cls), config)
     return OmegaConf.to_object(validated)
 

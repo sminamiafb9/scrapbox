@@ -5,11 +5,11 @@ from typing import Literal, cast
 
 from databricks.connect import DatabricksSession
 from loguru import logger
-from omegaconf import OmegaConf
 from pyspark.ml.classification import LogisticRegression, LogisticRegressionModel
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pyspark.sql import functions as F
 
+from learn_text_classification import config_utils
 from learn_text_classification.tracking import (
     ModelArtifact,
     TrackingConfig,
@@ -37,22 +37,10 @@ class LogisticRegressionParams:
 # 未指定の場合はインタラクティブ実行用の既定値を使用する。
 
 raw_parameters = globals().get("parameters", {})
-params = OmegaConf.to_object(
-    OmegaConf.merge(
-        OmegaConf.structured(LogisticRegressionParams()),
-        raw_parameters,
-    )
-)
-params = cast(LogisticRegressionParams, params)
+params = config_utils.validate(raw_parameters, LogisticRegressionParams)
 
 raw_tracking = globals().get("tracking", {})
-config = OmegaConf.to_object(
-    OmegaConf.merge(
-        OmegaConf.structured(TrackingConfig()),
-        raw_tracking,
-    )
-)
-config = cast(TrackingConfig, config)
+config = config_utils.validate(raw_tracking, TrackingConfig)
 
 
 # COMMAND ----------
