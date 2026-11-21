@@ -1,8 +1,10 @@
 from pathlib import Path
+from typing import Any
 
-from databricks.sdk.runtime import dbutils
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
+
+from .job_utils import get_job_option
 
 PROFILE_ORDER = ("local", "sandbox")
 PROFILE_PARAMETER_KEY = "profile"
@@ -12,12 +14,8 @@ CONFIG_PARAMETER_KEY = "config"
 def load_config(config_dir: str | Path) -> DictConfig:
     config_dir = Path(config_dir)
 
-    dbutils.widgets.text(PROFILE_PARAMETER_KEY, PROFILE_ORDER[0])
-    profile = dbutils.widgets.get(PROFILE_PARAMETER_KEY)
-
-    dbutils.widgets.text(CONFIG_PARAMETER_KEY, "")
-    config_name = dbutils.widgets.get(CONFIG_PARAMETER_KEY).strip()
-
+    profile = get_job_option(PROFILE_PARAMETER_KEY, PROFILE_ORDER[0])
+    config_name = get_job_option(CONFIG_PARAMETER_KEY).strip()
     if profile not in PROFILE_ORDER:
         raise ValueError(f"Invalid profile: {profile!r}.\nAvailable profiles: {PROFILE_ORDER}")
 
@@ -75,12 +73,12 @@ def load_config(config_dir: str | Path) -> DictConfig:
     return config
 
 
-def validate[T](config: DictConfig, cls: type[T]) -> T:
+def validate(config: DictConfig, cls: type) -> Any:
     validated = OmegaConf.merge(OmegaConf.structured(cls), config)
     return OmegaConf.to_object(validated)
 
 
-def load_config_by_key[T](config_dir: str | Path, cls: type[T], key: str) -> T:
+def load_config_by_key(config_dir: str | Path, cls: type, key: str) -> Any:
     config = load_config(config_dir)
     obj = validate(config[key], cls)
     logger.info("loaded config class:\n{}\n", OmegaConf.to_yaml(obj))

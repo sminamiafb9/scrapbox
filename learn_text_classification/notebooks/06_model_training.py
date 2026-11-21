@@ -1,36 +1,49 @@
 # Databricks notebook source
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 import runpy
+from typing import Any
 
-from databricks.sdk.runtime import dbutils
 from loguru import logger
+from omegaconf import MISSING
 
-from learn_text_classification import config_utils, logging_utils
-from learn_text_classification.tracking.models import TrainerOutputs
+from learn_text_classification import config_utils, job_utils, logging_utils
+from learn_text_classification.tracking.models import TrackingConfig, TrainerOutputs
 from learn_text_classification.tracking.tracking_utils import MLflowTracker
 
-# COMMAND ----------
-EXPERIMENT_KEY_KEY = "experiment_key"
-dbutils.widgets.text(EXPERIMENT_KEY_KEY, "baseline")
-experiment_key = dbutils.widgets.get(EXPERIMENT_KEY_KEY)
 
-RUN_NAME_KEY = "run_name"
-dbutils.widgets.text(RUN_NAME_KEY, "")
-run_name = dbutils.widgets.get(RUN_NAME_KEY).strip()
+# COMMAND ----------
+@dataclass
+class RunConfig:
+    run: str = MISSING
+    params: dict[str, Any] = field(default_factory=lambda: {})
+
+
+@dataclass
+class TrainingConfig:
+    runs: dict[str, RunConfig]
+
+    def get_run(self, key: str) -> RunConfig:
+        return self.runs[key]
+
+
+# COMMAND ----------
+experiment_key = job_utils.get_job_option("experiment_key", "baseline")
+run_name = job_utils.get_job_option("run_name").strip()
 
 # COMMAND ----------
 logging_utils.setup_logging()
 config = config_utils.load_config("./config")
+training_config = config_utils.validate(config["training"], TrainingConfig)
+tracking_config = config_utils.validate(config.get("tracking", {}), TrackingConfig)
 
 # COMMAND ----------
-experiment = config.get_experiment(experiment_key)
-if experiment is None:
+run_config = training_config.get_run(experiment_key)
+if run_config is None:
     raise ValueError(f"Experiment {experiment_key!r} not found")
 
 # COMMAND ----------
 # Tracking設定
-tracking_config = config.tracking
 tracker = MLflowTracker(
     experiment_name=tracking_config.experiment_path,
 )
@@ -56,12 +69,12 @@ tracking_config = replace(
 # COMMAND ----------
 try:
     logger.info("Running experiment: {}", experiment_key)
-    logger.info("Target notebook: {}", experiment.run)
+    logger.info("Target notebook: {}", run_config.run)
 
     namespace = runpy.run_path(
-        experiment.run,
+        run_config.run,
         init_globals={
-            "parameters": experiment.params,
+            "parameters": run_config.params,
             "tracking": tracking_config,
         },
     )
