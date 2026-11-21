@@ -33,6 +33,7 @@ dev = [
     "databricks-connect~=18.2.0",
     "deptry>=0.25.1",
     "pip>=26.3",
+    "pandas-stubs>=3.1.0.261029",
 ]
 
 

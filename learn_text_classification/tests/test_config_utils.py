@@ -1,5 +1,4 @@
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -76,78 +75,74 @@ experiments:
 
 
 @pytest.fixture
-def mock_widgets(monkeypatch):
-    mock_dbutils = MagicMock()
+def mock_job_options(monkeypatch):
     values = {
         "profile": "local",
         "config": "",
     }
 
-    mock_dbutils.widgets.get.side_effect = lambda key: values[key]
-
     monkeypatch.setattr(
-        "learn_text_classification.config_utils.dbutils",
-        mock_dbutils,
+        "learn_text_classification.config_utils.get_job_option",
+        lambda name, default="": values.get(name, default),
     )
 
-    return values, mock_dbutils.widgets
+    return values
 
 
-def test_load_local_config(config_dir, mock_widgets):
-    _values, _ = mock_widgets
-
+def test_load_local_config(config_dir: Path, mock_job_options):
     config = load_config(config_dir)
 
     assert config.ingest.url == "local-url"
+    assert config.ingest.volume == "/tmp/raw"
     assert config.embedding.batch_size == 16
-    assert config.tracking.save_model is False
-    assert config.experiments == {}
+    assert "experiments" not in config
 
 
-def test_load_sandbox_config(config_dir, mock_widgets):
-    values, _ = mock_widgets
-    values["profile"] = "sandbox"
+def test_load_sandbox_config(config_dir: Path, mock_job_options):
+    mock_job_options["profile"] = "sandbox"
 
     config = load_config(config_dir)
 
     assert config.ingest.url == "sandbox-url"
-    assert config.ingest.volume == Path("/Volumes/catalog/schema/volume")
-    assert config.embedding.cache_folder == Path("/Volumes/catalog/schema/volume/cache")
+    assert config.ingest.volume == "/Volumes/catalog/schema/volume"
+    assert config.prepare.raw_data == "/tmp/raw"
+    assert config.embedding.cache_folder == "/Volumes/catalog/schema/volume/cache"
     assert config.embedding.batch_size == 16
     assert config.tracking.save_model is True
 
 
-def test_load_experiment_config(config_dir, mock_widgets):
-    values, _ = mock_widgets
-    values["config"] = "baseline"
+def test_load_experiment_config(config_dir: Path, mock_job_options):
+    mock_job_options["config"] = "baseline"
 
     config = load_config(config_dir)
 
-    experiment = config.get_experiment("baseline")
+    experiment = config.experiments.baseline
 
-    assert experiment is not None
     assert experiment.run == "baseline-run"
-    assert experiment.params["C"] == 1.0
+    assert experiment.params.C == 1.0
 
 
-def test_experiment_config_overrides_base_config(config_dir, mock_widgets):
-    values, _ = mock_widgets
-    values["config"] = "override"
+def test_experiment_config_overrides_base_config(
+    config_dir: Path,
+    mock_job_options,
+):
+    mock_job_options["config"] = "override"
 
     config = load_config(config_dir)
 
     assert config.embedding.batch_size == 32
 
-    experiment = config.get_experiment("baseline")
-    assert experiment is not None
-    assert experiment.params["C"] == 2.0
-    assert experiment.params["max_iter"] == 100
+    experiment = config.experiments.baseline
+
+    assert experiment.run == "baseline-run"
+    assert experiment.params.C == 2.0
+    assert experiment.params.max_iter == 100
 
 
-def test_experiment_config_merges_params(config_dir, mock_widgets):
-    values, _ = mock_widgets
-    values["config"] = "override"  # baselineではなくoverrideを読み込む
-
+def test_experiment_config_merges_params(
+    config_dir: Path,
+    mock_job_options,
+):
     (config_dir / "local.yml").write_text(
         """
 ingest:
@@ -164,6 +159,8 @@ embedding:
   transfer_batch_size: 8
   embedding_model_name: local-model
   dataset: local-dataset
+tracking:
+  save_model: false
 experiments:
   baseline:
     run: baseline-run
@@ -183,50 +180,62 @@ experiments:
         encoding="utf-8",
     )
 
+    mock_job_options["config"] = "override"
+
     config = load_config(config_dir)
 
-    experiment = config.get_experiment("baseline")
-    assert experiment is not None
+    experiment = config.experiments.baseline
+
     assert experiment.run == "baseline-run"
-    assert experiment.params["C"] == 1.0
-    assert experiment.params["max_iter"] == 100
+    assert experiment.params.C == 1.0
+    assert experiment.params.max_iter == 100
 
 
-def test_invalid_profile_raises_error(config_dir, mock_widgets):
-    values, _ = mock_widgets
-    values["profile"] = "invalid"
+def test_invalid_profile_raises_error(
+    config_dir: Path,
+    mock_job_options,
+):
+    mock_job_options["profile"] = "invalid"
 
     with pytest.raises(ValueError, match="Invalid profile"):
         load_config(config_dir)
 
 
-def test_missing_profile_config_raises_error(tmp_path, mock_widgets):
+def test_missing_profile_config_raises_error(
+    tmp_path: Path,
+    mock_job_options,
+):
     config_dir = tmp_path / "config"
     config_dir.mkdir()
 
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(FileNotFoundError, match="Config file not found"):
         load_config(config_dir)
 
 
-def test_missing_experiment_file_raises_error(config_dir, mock_widgets):
-    values, _ = mock_widgets
-    values["config"] = "missing"
+def test_missing_experiment_file_raises_error(
+    config_dir: Path,
+    mock_job_options,
+):
+    mock_job_options["config"] = "missing"
 
-    with pytest.raises(FileNotFoundError, match="Experiment config file"):
+    with pytest.raises(FileNotFoundError, match="Experiment config file not found"):
         load_config(config_dir)
 
 
-def test_missing_required_config_raises_error(tmp_path, mock_widgets):
-    config_dir = tmp_path / "config"
-    config_dir.mkdir()
-
+def test_missing_required_config_raises_error(
+    config_dir: Path,
+    mock_job_options,
+):
     (config_dir / "local.yml").write_text(
         """
 ingest:
-  url: local-url
+  url: ???
 """,
         encoding="utf-8",
     )
 
-    with pytest.raises(ValueError, match="Required config values are missing"):
+    with pytest.raises(
+        ValueError,
+        match="Required config values are missing",
+    ):
         load_config(config_dir)

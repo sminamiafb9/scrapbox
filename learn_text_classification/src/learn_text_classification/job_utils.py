@@ -60,10 +60,13 @@ def exit_if_file_exists(file_path: str | Path, return_value: str = "") -> None:
 
 
 def get_job_option(name: str, default: str = "") -> str:
-    if check_runtime_environment() == "databricks":
+    runtime = check_runtime_environment()
+    if runtime == "databricks":
         with contextlib.suppress(Exception):
             dbutils.widgets.text(name, default)
         value = dbutils.widgets.get(name)
         return value
-    elif check_runtime_environment() == "local":
+    elif runtime == "local":
         return os.environ.get(name, default)
+    else:
+        raise ValueError(f"Invalid runtime environment: {runtime}")
