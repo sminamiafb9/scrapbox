@@ -21,6 +21,7 @@ from learn_text_classification.tracking import (
 # COMMAND ----------
 @dataclass
 class LogisticRegressionParams:
+    model_id: str = "logistic_regression"
     dataset: str = "sandbox.shotaro_minami8e40a5.wrime_embeddings"
     label_col: str = "Joy"
     features_col: str = "features"
@@ -57,6 +58,7 @@ config = cast(TrackingConfig, config)
 # COMMAND ----------
 record = TrackingRecord(
     params={
+        "model_id": params.model_id,
         "dataset": params.dataset,
         "label_col": params.label_col,
         "features_col": params.features_col,
@@ -65,6 +67,7 @@ record = TrackingRecord(
         "max_itr": params.max_itr,
     },
     tags={
+        "model_id": params.model_id,
         "label": params.label_col,
     },
 )

@@ -1,4 +1,5 @@
 experiments:
+  # 共通パラメータ定義用
   baseline: &baseline
     run: 21_hyperparameter_tuning.py
     params: &baseline_params
@@ -7,6 +8,7 @@ experiments:
       n_startup_trials: 10
       n_trials: 50
       base_fixed_params: &baseline_fixed_params
+        model_id: logistic_regression
         max_itr: 30
       suggest_params:
         regularization:
