@@ -1,17 +1,29 @@
 # Databricks notebook source
+from dataclasses import dataclass
+from pathlib import Path
+
 from databricks.connect import DatabricksSession
+from omegaconf import MISSING
 from pyspark.sql import functions as F
 
 from learn_text_classification import config_utils, job_utils, logging_utils
 
+
+# COMMAND ----------
+@dataclass
+class PrepareConfig:
+    raw_data: Path = MISSING
+    dataset: str = MISSING
+
+
 # COMMAND ----------
 logging_utils.setup_logging()
-config = config_utils.load_config("./config")
+config = config_utils.load_config_by_key("./config", PrepareConfig, "prepare")
 
 spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
-job_utils.exit_if_table_exists(config.prepare.dataset)
+job_utils.exit_if_table_exists(config.dataset)
 
 # COMMAND ----------
 raw_data = (
@@ -19,7 +31,7 @@ raw_data = (
     .option("header", True)
     .option("sep", "\t")
     .option("inferSchema", True)
-    .load(str(config.prepare.raw_data))
+    .load(str(config.raw_data))
 )
 logging_utils.show_df(raw_data, level="DEBUG")
 
@@ -51,13 +63,8 @@ df_simple.printSchema()
 logging_utils.show_df(df_simple, level="DEBUG")
 
 # COMMAND ----------
-(
-    df_simple.write.format("delta")
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
-    .saveAsTable(config.prepare.dataset)
-)
+df_simple.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(config.dataset)
 
-loaded = spark.read.table(config.prepare.dataset)
+loaded = spark.read.table(config.dataset)
 loaded.printSchema()
 logging_utils.show_df(loaded, level="INFO")

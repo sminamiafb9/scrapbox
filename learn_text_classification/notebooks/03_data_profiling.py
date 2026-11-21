@@ -1,22 +1,31 @@
 # Databricks notebook source
+from dataclasses import dataclass
 from functools import reduce
 
 from databricks.connect import DatabricksSession
 from loguru import logger
 import matplotlib.pyplot as plt
+from omegaconf import MISSING
 from pyspark.sql import functions as F
 import seaborn as sns
 
 from learn_text_classification import config_utils, logging_utils
 
+
+# COMMAND ----------
+@dataclass
+class ProfilingConfig:
+    dataset: str = MISSING
+
+
 # COMMAND ----------
 logging_utils.setup_logging()
-config = config_utils.load_config("./config")
+config = config_utils.load_config_by_key("./config", ProfilingConfig, "profiling")
 
 spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
-df = spark.table(config.prepare.dataset)
+df = spark.table(config.dataset)
 logging_utils.show_df(df, level="DEBUG")
 
 # COMMAND ----------

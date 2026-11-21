@@ -1,23 +1,34 @@
 # Databricks notebook source
+from dataclasses import dataclass
+
 from databricks.connect import DatabricksSession
 from loguru import logger
 import matplotlib.pyplot as plt
+from omegaconf import MISSING
 from pyspark.sql import functions as F
 import seaborn as sns
 
 from learn_text_classification import config_utils, job_utils, logging_utils
 
+
+# COMMAND ----------
+@dataclass
+class PreprocessingConfig:
+    input: str = MISSING
+    dataset: str = MISSING
+
+
 # COMMAND ----------
 logging_utils.setup_logging()
-config = config_utils.load_config("./config")
+config = config_utils.load_config_by_key("./config", PreprocessingConfig, "preprocessing")
 
 spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
-job_utils.exit_if_table_exists(config.preprocessing.dataset)
+job_utils.exit_if_table_exists(config.dataset)
 
 # COMMAND ----------
-df = spark.table(config.prepare.dataset)
+df = spark.table(config.input)
 logging_utils.show_df(df, level="DEBUG")
 
 # COMMAND ----------
@@ -82,8 +93,8 @@ plt.tight_layout()
 plt.show()
 
 # COMMAND ----------
-(df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(config.preprocessing.dataset))
+df.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(config.dataset)
 
-loaded = spark.read.table(config.preprocessing.dataset)
+loaded = spark.read.table(config.dataset)
 loaded.printSchema()
 logging_utils.show_df(loaded, level="INFO")

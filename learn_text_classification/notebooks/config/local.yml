@@ -6,7 +6,11 @@ prepare:
   raw_data: /Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/raw_data/wrime-ver2.tsv
   dataset: sandbox.shotaro_minami8e40a5.wrime
 
+profiling:
+  dataset: sandbox.shotaro_minami8e40a5.wrime
+
 preprocessing:
+  input: sandbox.shotaro_minami8e40a5.wrime
   dataset: sandbox.shotaro_minami8e40a5.wrime_binary
 
 embedding:
@@ -14,6 +18,7 @@ embedding:
   batch_size: 500
   transfer_batch_size: 5000
   embedding_model_name: cl-nagoya/ruri-v3-30m
+  input: sandbox.shotaro_minami8e40a5.wrime_binary
   dataset: sandbox.shotaro_minami8e40a5.wrime_embeddings
 
 assembling:

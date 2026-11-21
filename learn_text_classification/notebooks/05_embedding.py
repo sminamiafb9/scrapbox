@@ -1,9 +1,12 @@
 # Databricks notebook source
+from dataclasses import dataclass
 import math
+from pathlib import Path
 import uuid
 
 from databricks.connect import DatabricksSession
 from loguru import logger
+from omegaconf import MISSING
 from pyspark.ml.functions import array_to_vector
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
@@ -17,27 +20,38 @@ from sentence_transformers import SentenceTransformer
 
 from learn_text_classification import config_utils, job_utils, logging_utils
 
+
+# COMMAND ----------
+@dataclass
+class EmbeddingConfig:
+    cache_folder: Path = MISSING
+    batch_size: int = MISSING
+    transfer_batch_size: int = MISSING
+    embedding_model_name: str = MISSING
+    input: str = MISSING
+    dataset: str = MISSING
+
+
 # COMMAND ----------
 logging_utils.setup_logging()
-config = config_utils.load_config("./config")
-embedding_config = config.embedding
+config = config_utils.load_config_by_key("./config", EmbeddingConfig, "embedding")
 
 spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
-job_utils.exit_if_table_exists(embedding_config.dataset)
+job_utils.exit_if_table_exists(config.dataset)
 
 # COMMAND ----------
-df = spark.read.table(config.preprocessing.dataset)
+df = spark.read.table(config.input)
 logging_utils.show_df(df, level="DEBUG")
 
 # COMMAND ----------
-embedding_config.cache_folder.mkdir(parents=True, exist_ok=True)
+config.cache_folder.mkdir(parents=True, exist_ok=True)
 
 # COMMAND ----------
 embedding_model = SentenceTransformer(
-    embedding_config.embedding_model_name,
-    cache_folder=str(embedding_config.cache_folder),
+    config.embedding_model_name,
+    cache_folder=str(config.cache_folder),
 )
 
 schema = StructType(
@@ -48,15 +62,15 @@ schema = StructType(
 )
 
 temporary_prefix = uuid.uuid4().hex
-temporary_table = f"{embedding_config.dataset}_{temporary_prefix}"
+temporary_table = f"{config.dataset}_{temporary_prefix}"
 
 empty_df = spark.createDataFrame([], schema)
 empty_df.write.format("delta").mode("overwrite").saveAsTable(temporary_table)
 
 # COMMAND ----------
 all_count = df.count()
-batch_size = embedding_config.batch_size
-transfer_batch_size = embedding_config.transfer_batch_size
+batch_size = config.batch_size
+transfer_batch_size = config.transfer_batch_size
 batch_count = max(1, math.ceil(all_count / transfer_batch_size))
 
 logger.info(
@@ -136,14 +150,9 @@ datasets = (
     .drop(F.col("Embedding"))
 )
 
-(
-    datasets.write.format("delta")
-    .mode("overwrite")
-    .option("overwriteSchema", "true")
-    .saveAsTable(embedding_config.dataset)
-)
+datasets.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(config.dataset)
 
-loaded = spark.read.table(embedding_config.dataset)
+loaded = spark.read.table(config.dataset)
 loaded.printSchema()
 logging_utils.show_df(loaded, level="INFO")
 
