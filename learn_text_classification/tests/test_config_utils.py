@@ -94,7 +94,7 @@ def mock_widgets(monkeypatch):
 
 
 def test_load_local_config(config_dir, mock_widgets):
-    values, _ = mock_widgets
+    _values, _ = mock_widgets
 
     config = load_config(config_dir)
 
