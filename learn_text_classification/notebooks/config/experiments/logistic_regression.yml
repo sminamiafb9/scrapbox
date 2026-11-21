@@ -87,3 +87,8 @@ training:
         base_fixed_params:
           <<: *baseline_fixed_params
           label_col: Trust
+
+assembling:
+  experiment_name: /Users/shotaro.minami8e40a5@gmail.com/.mlflow/learn_text_classification
+  model_id: logistic_regression
+  save_path: /Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/models/binary_relevance_logistic_regression

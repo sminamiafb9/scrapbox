@@ -78,7 +78,7 @@ def validate(config: DictConfig | dict[str, Any], cls: type) -> Any:
     return OmegaConf.to_object(validated)
 
 
-def load_config_by_key(config_dir: str | Path, cls: type, key: str) -> Any:
+def load_config_by_key[T](config_dir: str | Path, cls: type[T], key: str) -> T:
     config = load_config(config_dir)
     obj = validate(config[key], cls)
     logger.info("loaded config class:\n{}\n", OmegaConf.to_yaml(obj))

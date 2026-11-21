@@ -20,8 +20,3 @@ embedding:
   embedding_model_name: cl-nagoya/ruri-v3-30m
   input: sandbox.shotaro_minami8e40a5.wrime_binary
   dataset: sandbox.shotaro_minami8e40a5.wrime_embeddings
-
-assembling:
-    experiment_name: /Users/shotaro.minami8e40a5@gmail.com/.mlflow/learn_text_classification
-    model_id: logistic_regression
-    save_path: /Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/models/binary_relevance_logistic_regression

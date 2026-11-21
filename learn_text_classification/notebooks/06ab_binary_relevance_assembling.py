@@ -1,9 +1,11 @@
 # Databricks notebook source
+from dataclasses import dataclass
 from typing import cast
 
 from databricks.connect import DatabricksSession
 from loguru import logger
 import mlflow
+from omegaconf import MISSING
 from pyspark.ml import Model
 from pyspark.ml.classification import LogisticRegressionModel
 
@@ -12,11 +14,19 @@ from learn_text_classification.job_utils import check_runtime_environment
 from learn_text_classification.spark_utils.inference_model import BinaryRelevanceInferenceModel
 from learn_text_classification.tracking import run_utils
 
-# COMMAND ----------
-logging_utils.setup_logging()
-config = config_utils.load_config("./config")
 
 # COMMAND ----------
+@dataclass
+class BinaryRelevanceAssemblingConfig:
+    experiment_name: str = MISSING
+    model_id: str = MISSING
+    save_path: str = MISSING
+
+
+# COMMAND ----------
+logging_utils.setup_logging()
+config = config_utils.load_config_by_key("./config", BinaryRelevanceAssemblingConfig, "assembling")
+
 spark = DatabricksSession.builder.getOrCreate()
 
 # COMMAND ----------
@@ -26,11 +36,7 @@ if check_runtime_environment() == "local":
     mlflow.set_registry_uri(f"databricks-uc://{DATABRICKS_PROFILE}")
 
 # COMMAND ----------
-experiment_name = "/Users/shotaro.minami8e40a5@gmail.com/.mlflow/learn_text_classification"
-model_id = "logistic_regression"
-
-# COMMAND ----------
-runs = run_utils.search_finished_runs_by_model_id(config.assembling.experiment_name, config.assembling.model_id)
+runs = run_utils.search_finished_runs_by_model_id(config.experiment_name, config.model_id)
 logger.info("Search Results:")
 logger.info(run_utils)
 
@@ -44,4 +50,4 @@ for _, row in runs.iterrows():
 inference = BinaryRelevanceInferenceModel(models=models)
 
 # COMMAND ----------
-inference.save(config.assembling.save_path, spark)
+inference.save(config.save_path, spark)
