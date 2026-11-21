@@ -6,7 +6,7 @@ from pyspark.sql import DataFrame, SparkSession
 ModelLoader = Callable[[str], Model]
 
 
-class MultiLabelClassificationInferenceModel(Transformer):
+class BinaryRelevanceInferenceModel(Transformer):
     OUTPUT_ACCESSORS = (
         "getPredictionCol",
         "getProbabilityCol",
@@ -25,7 +25,7 @@ class MultiLabelClassificationInferenceModel(Transformer):
     def _get_output_columns(model: Model) -> list[str]:
         return [
             getattr(model, accessor)()
-            for accessor in MultiLabelClassificationInferenceModel.OUTPUT_ACCESSORS
+            for accessor in BinaryRelevanceInferenceModel.OUTPUT_ACCESSORS
             if hasattr(model, accessor)
         ]
 
@@ -56,9 +56,7 @@ class MultiLabelClassificationInferenceModel(Transformer):
         spark.createDataFrame(manifest, ["label", "model_dir"]).write.mode("overwrite").parquet(f"{path}/manifest")
 
     @classmethod
-    def load(
-        cls, path: str, spark: SparkSession, model_loader: ModelLoader
-    ) -> "MultiLabelClassificationInferenceModel":
+    def load(cls, path: str, spark: SparkSession, model_loader: ModelLoader) -> "BinaryRelevanceInferenceModel":
         rows = spark.read.parquet(f"{path}/manifest").collect()
         models = {row.label: model_loader(f"{path}/models/{row.model_dir}") for row in rows}
         return cls(models)

@@ -1,3 +1,10 @@
+x-common-task-config:
+  base_parameters: &shared_params
+    profile: sandbox
+    config: logistic_regression
+    log_level: INFO
+    runtime_environment: databricks
+
 resources:
   jobs:
     logistic_regression:
@@ -8,10 +15,7 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/06_model_training.py
             base_parameters: &default_params
-              profile: sandbox
-              config: logistic_regression
-              log_level: INFO
-              runtime_environment: databricks
+              <<: *shared_params
               experiment_key: LR_Joy
           environment_key: &default_env default
 
@@ -69,6 +73,23 @@ resources:
             base_parameters:
               <<: *default_params
               experiment_key: LR_Trust
+          environment_key: *default_env
+
+        - task_key: lr_model_assembling
+          depends_on:
+            - task_key: lr_joy_training
+            - task_key: lr_sadness_training
+            - task_key: lr_anticipation_training
+            - task_key: lr_surprise_training
+            - task_key: lr_anger_training
+            - task_key: lr_fear_training
+            - task_key: lr_disgust_training
+            - task_key: lr_trust_training
+          notebook_task:
+            notebook_path: ../notebooks/06ab_binary_relevance_assembling.py
+            base_parameters: 
+              <<: *default_params
+              
           environment_key: *default_env
 
       environments:

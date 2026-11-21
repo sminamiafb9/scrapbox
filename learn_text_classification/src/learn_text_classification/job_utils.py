@@ -94,7 +94,6 @@ def download_volume_directory(
             )
 
 
-# not used
 def load_json_from_widget(
     name: str,
     default: dict[str, Any] | None = None,

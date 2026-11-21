@@ -31,6 +31,13 @@ class EmbeddingConfig:
 
 
 @dataclass
+class BinaryRelevanceAssemblingConfig:
+    experiment_name: str = "/Users/shotaro.minami8e40a5@gmail.com/.mlflow/learn_text_classification"
+    model_id: str = "logistic_regression"
+    save_path: str = "/Volumes/sandbox/shotaro_minami8e40a5/learn_text_classification/models/test"
+
+
+@dataclass
 class PreprocessingConfig:
     dataset: str = MISSING
 
@@ -55,6 +62,7 @@ class Config:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     experiments: dict[ProfileKey, ExperimentConfig] = field(default_factory=lambda: {})
     tracking: TrackingConfig = field(default_factory=TrackingConfig)
+    assembling: BinaryRelevanceAssemblingConfig = field(default_factory=BinaryRelevanceAssemblingConfig)
 
     def get_experiment(self, experiment_key: str) -> ExperimentConfig | None:
         return self.experiments.get(experiment_key)
