@@ -12,7 +12,7 @@
 
 実行制御には `runpy.run_path()` を使用し、Notebook間では `parameters` と `tracking` を入力、`outputs` を出力とする共通インターフェースを採用している。
 
-設定管理は環境設定と実験設定を分離し、Config Loaderによってマージ・検証を行う構成とする。
+設定管理は処理単位のConfigを個別に定義し、Config Loaderと検証処理を通じて読み込む構成とする。Widgetには依存せず、Job optionや環境変数などの実行環境に応じた設定取得を行う。
 
 ## 2. Overall Workflow
 
@@ -90,6 +90,10 @@ flowchart TD
 | `lr_fear_training` | `LR_Fear` |
 | `lr_disgust_training` | `LR_Disgust` |
 | `lr_trust_training` | `LR_Trust` |
+
+### Binary Relevance Model Assembly Job
+
+学習済みのラベル別モデルを取得し、統合推論モデルとして保存するAssembly処理を追加する。Assembly Taskは各ラベルの学習Task完了後に実行し、MLflow Runからモデルを取得して `BinaryRelevanceInferenceModel` を構築・保存する。
 
 Data Processing JobとLogistic Regression Jobは独立して管理される。Job間の実行依存関係は設定せず、データ処理と学習をそれぞれ個別に実行できる構成とする。
 
@@ -357,6 +361,25 @@ Tuner経由の場合、Trialではモデルを保存せず、最終Trainerの実
 
 現時点ではSpark MLモデルのVolume保存を対象とする。sklearnなどの非Sparkモデルに対するMLflow Flavor対応は、対象モデルを追加する段階で検討する。
 
+## 6.1 Binary Relevance Model Assembly
+
+Binary Relevanceでは、各ラベルの学習結果をMLflow Runから取得し、ラベルごとのSpark MLモデルを `BinaryRelevanceInferenceModel` に統合する。
+
+組み立てNotebookはMLflow Experiment内の完了済みRunを検索し、各Runに記録されたモデル保存先情報をもとにモデルをロードする。ロードしたモデルをラベル名と対応付けて統合モデルを構成し、Unity Catalog Volumeに保存する。
+
+```mermaid
+flowchart TD
+    A["各ラベルのMLflow Runs"]
+    B["Run検索・モデル保存先取得"]
+    C["ラベル別Spark ML Modelロード"]
+    D["BinaryRelevanceInferenceModel"]
+    E["Unity Catalog Volume"]
+
+    A --> B --> C --> D --> E
+```
+
+統合モデルはラベルごとのモデルを保持し、入力DataFrameに対して各モデルの推論を実行して結果を結合する。モデルの保存・ロードではmanifestを用いてラベルとモデル保存先を対応付ける。
+
 ## 7. Configuration Architecture
 
 ### 7.1 Configuration files
@@ -382,39 +405,21 @@ notebooks/
 
 ### 7.2 Configuration loading
 
-Config LoaderはWidgetから `profile` と `config` を取得し、設定ファイルを読み込む。
+Config Loaderは `profile` と `config` をWidgetではなくJob option等から取得し、設定ファイルを読み込む。
 
-| Widget | Role |
+| Parameter | Role |
 |---|---|
 | `profile` | 読み込む環境設定を選択する |
 | `config` | 読み込む実験設定ファイルを選択する |
 
 `profile` は `local` または `sandbox` を指定する。
 
-環境設定は以下の順序でマージする。
+環境設定と実験設定を読み込み、必要に応じてマージした上で、処理単位のConfigクラスに検証・変換する。
 
-```mermaid
-flowchart TD
-    A["local.yml"]
-    B["sandbox.yml<br/>sandboxの場合"]
-    C["experiments/<config>.yml"]
-    D["Merged Config"]
-    E["Required Values Validation"]
-    F["Config Object"]
-
-    A --> D
-    B --> D
-    C --> D
-    D --> E --> F
-```
-
-- `local` の場合は `local.yml` を読み込む。
-- `sandbox` の場合は `local.yml` と `sandbox.yml` を順にマージする。
-- `config` が指定されている場合は、`experiments/` 配下の指定ファイルを追加でマージする。
-- 同一キーが存在する場合は後から読み込んだ設定が優先される。
-- マージ後に必須値の検証を行う。
-
-実験設定ファイルは `.yml` または `.yaml` を使用する。
+- `local` / `sandbox` などの環境設定を選択する。
+- `config` が指定されている場合は、実験設定ファイルを読み込む。
+- 同一キーが存在する場合は設定マージ時の優先順位に従って上書きする。
+- Configクラスによる型および必須値の検証を行う。
 
 ### 7.3 Experiment configuration
 
@@ -482,12 +487,10 @@ experiment_path = (
 
 Config LoaderではOmegaConfのStructured Configを使用し、設定値の型および必須値を検証する。
 
-- Configクラスによって設定構造を定義する。
+- Notebook・処理単位のConfigクラスによって設定構造を定義する。
 - `MISSING` を使用して必須値を明示する。
 - `default_factory` によって部分設定でもマージ可能な構造とする。
-- マージ後に必須値が不足している場合は例外を発生させる。
-
-環境設定ファイルに `experiments` が定義されている場合は、別ファイルへの分離を促すDeprecated Warningを出力する。
+- 読み込み後に必須値の不足を検証する。
 
 ## 8. Main Components
 
@@ -533,15 +536,9 @@ learn_text_classification/
 
 ### 8.1 Configuration management
 
-`config_utils.py` は以下を担当する。
+`config_utils.py` は設定ファイルの読み込み、設定のマージおよび検証を支援する。設定値の取得にDatabricks Widgetsは使用しない。
 
-- `profile` Widgetの取得
-- `config` Widgetの取得
-- 環境設定ファイルの読み込み
-- 実験設定ファイルの読み込み
-- OmegaConfによる設定マージ
-- 必須値の検証
-- Configオブジェクトの生成
+処理単位にConfigを定義し、各Notebookは対応する設定をロードする。対象にはIngest、Prepare、Profiling、Preprocessing、Embedding、Model assemblingおよびTrainingの設定が含まれる。
 
 ### 8.2 Job management
 
