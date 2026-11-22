@@ -304,6 +304,8 @@ exclude = [
     "__pycache__",
     "build",
     "dist",
+    "README.md",
+    "docs/**",
 ]
 
 
