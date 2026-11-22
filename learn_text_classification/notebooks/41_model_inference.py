@@ -6,7 +6,7 @@ from omegaconf import MISSING
 
 from learn_text_classification import config_utils, logging_utils
 from learn_text_classification.spark_utils.model_loader import load_model
-from learn_text_classification.tracking.models import TrackingConfig
+from learn_text_classification.tracking.models import InferenceOutputs, TrackingConfig
 
 
 # COMMAND ----------
@@ -32,3 +32,8 @@ df = spark.read.table(inference_config.input)
 # COMMAND ----------
 model = load_model(inference_config.model_uri, spark)
 predictions = model.transform(df)
+
+# COMMAND ----------
+inference_outputs = InferenceOutputs(
+    predictions=predictions,
+)
