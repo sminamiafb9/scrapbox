@@ -1,5 +1,7 @@
 from .models import (
+    EvaluationOutputs,
     FailureInfo,
+    InferenceOutputs,
     ModelArtifact,
     TrackingConfig,
     TrackingRecord,
@@ -8,7 +10,9 @@ from .models import (
 from .tracking_utils import MLflowTracker
 
 __all__ = [
+    "EvaluationOutputs",
     "FailureInfo",
+    "InferenceOutputs",
     "MLflowTracker",
     "ModelArtifact",
     "TrackingConfig",
