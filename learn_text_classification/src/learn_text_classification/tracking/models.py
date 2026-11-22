@@ -4,6 +4,8 @@ import math
 from pathlib import Path
 from typing import Any, Literal
 
+from pyspark.sql import DataFrame
+
 TrainerStatus = Literal["SUCCEEDED", "FAILED"]
 
 _VALID_STATUSES = {"SUCCEEDED", "FAILED"}
@@ -208,3 +210,17 @@ class TrackingConfig:
             return None
 
         return (Path(self.workspace_base) / Path(self.project_name)).as_posix()
+
+
+@dataclass
+class InferenceOutputs:
+    """Output contract for model inference."""
+
+    predictions: DataFrame
+
+
+@dataclass
+class EvaluationOutputs:
+    """Output contract for model evaluation."""
+
+    metrics: dict[str, float]

@@ -4,7 +4,9 @@ from pathlib import Path
 import pytest
 
 from learn_text_classification.tracking.models import (
+    EvaluationOutputs,
     FailureInfo,
+    InferenceOutputs,
     ModelArtifact,
     TrackingConfig,
     TrackingRecord,
@@ -221,3 +223,20 @@ class TestTrackingConfig:
         )
 
         assert config.experiment_path is None
+
+
+def test_inference_outputs():
+    predictions = object()
+
+    outputs = InferenceOutputs(predictions=predictions)
+
+    assert outputs.predictions is predictions
+
+
+def test_evaluation_outputs():
+    metrics = {"f1": 0.85, "precision": 0.9}
+
+    outputs = EvaluationOutputs(metrics=metrics)
+
+    assert outputs.metrics == metrics
+    assert outputs.metrics is metrics
