@@ -86,7 +86,7 @@ resources:
             - task_key: lr_disgust_training
             - task_key: lr_trust_training
           notebook_task:
-            notebook_path: ../notebooks/06ab_binary_relevance_assembling.py
+            notebook_path: ../notebooks/06u02_binary_relevance_assembling.py
             base_parameters: 
               <<: *default_params
               

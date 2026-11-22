@@ -2,9 +2,9 @@ training:
   runs:
     # 共通パラメータ定義用
     baseline: &baseline
-      run: 06aa_hyperparameter_tuning.py
+      run: 06u01_hyperparameter_tuning.py
       params: &baseline_params
-        trainer: 0601_logistic_regression.py
+        trainer: 06m01_logistic_regression.py
         direction: maximize
         n_startup_trials: 10
         n_trials: 50
