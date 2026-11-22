@@ -17,11 +17,15 @@ class InferenceConfig:
 
 
 # COMMAND ----------
+# 設定ファイルから Inference 固有の設定を読み込む。
 logging_utils.setup_logging()
 
 config = config_utils.load_config("./config")
 inference_config = config_utils.validate(config["inference"], InferenceConfig)
-tracking_config = config_utils.validate(config.get("tracking", {}), TrackingConfig)
+
+# runpy.run_path() の init_globals から受け取る。
+raw_tracking = globals().get("tracking", {})
+tracking_config = config_utils.validate(raw_tracking, TrackingConfig)
 
 # COMMAND ----------
 spark = DatabricksSession.builder.getOrCreate()
